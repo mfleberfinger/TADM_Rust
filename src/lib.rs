@@ -1,8 +1,16 @@
+pub mod collections;
+
 #[cfg(test)]
-mod tests {
+mod dynamic_array_tests {
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn array_grows() {
+        // TODO: Make sure a dynamic array accepts data and grows as needed.
+        // Make sure the count is updated correctly when items are added.
+    }
+
+    #[test]
+    fn array_removal_test() {
+        // TODO: Make sure items can be removed from the array.
+        // Make sure the count is updated correctly when items are removed.
     }
 }
