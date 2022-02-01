@@ -1,4 +1,3 @@
-use std::cell:RefCell;
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -41,30 +40,30 @@ impl<T> DynamicArray<T> {
 }
 */
 
-#[Cfg(Test)]
-mod linked_list_tests() {
+#[cfg(test)]
+mod linked_list_tests {
     use super::*;
 
     #[test]
     fn insertion_test() {
-        let mut l = LinkedList<i32>::new();
+        let mut l = LinkedList::<i32>::new();
         l.insert(10);
-        assert_eq(l.data, 10);
+        assert_eq!(l.iter().next(), 10);
     }
 
-    // The linked list should use an iterator to transparently return data.
-    // The user will not know about nodes.
     #[test]
     fn iteration_test() {
-        let mut l = LinkedList<i32>::new();
+        let mut l = LinkedList::<i32>::new();
 
         for i in 0..10 {
             l.insert(i);
         }
 
+        // The linked list should use an iterator to transparently return data.
+        // The calling code will not know about Nodes.
         let mut i = 0;
         for data in l {
-            assert_eq(data, i);
+            assert_eq!(data, i);
             i += 1;
         }
     }
@@ -72,18 +71,36 @@ mod linked_list_tests() {
 
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
-    head: Option<Box<LinkedList<T>>>
+    // The head of the linked list.
+    head: Option<Box<Node<T>>>,
+    // The current node of the linked list. Used by the iterator.
+    current: Option<Box<Node<T>>>
 }
 
 struct Node<T> {
     data: T,
-    next: Option<Box<LinkedList<T>>>
+    next: Option<Box<Node<T>>>
+}
+
+impl Iterator for LinkedList<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<self::Item> {
+        // If head is None (i.e. the list is empty) return None.
+        // If we've reached the end of the list, return None.
+        // If head is Some but current is None, set current to head and return
+        //  the head.data.
+        // Else, return self.next.data.
+    }
 }
 
 impl<T> LinkedList<T> {
     /// Returns a new empty list.
     pub fn new() -> LinkedList<T> {
-        
+        LinkedList::<T> {
+            head: None,
+            current: None
+        }
     }
 
     /// Inserts a new node containing data at the beginning of the list.
