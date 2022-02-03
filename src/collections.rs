@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -59,8 +61,7 @@ mod linked_list_tests {
             l.insert(i);
         }
 
-        // The linked list should use an iterator to transparently return a
-        // reference to the data field.
+        // The linked list should use an iterator to transparently return data.
         // The calling code will not know about Nodes.
         let mut i = 0;
         for data in l {
@@ -73,51 +74,40 @@ mod linked_list_tests {
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
     // The head of the linked list.
-    head: Option<Box<Node<T>>>,
+    // Owns the first node of the list.
+    head: Option<RefCell<Rc<Node<T>>>>,
     // The current node of the linked list. Used by the iterator.
-    current: Option<Box<Node<T>>>
+    // Current should be a weak reference. It should not own anything.
+    current: RefCell<Weak<Node<T>>>
 }
 
 struct Node<T> {
     data: T,
-    next: Option<Box<Node<T>>>
+    // Each node owns its child.
+    next: Option<RefCell<Rc<Node<T>>>>
 }
 
 impl<T> Iterator for LinkedList<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.head {
-            // The list is not empty.
-            Some(headNode) => {
-                match self.current {
-                    // We have a current node.
-                    Some(currentNode) => {
-                        match currentNode.next {
-                            // There is a next node. Advance and return its value.
-                            Some(nextNode) => {
-                                self.current = Some(nextNode);
-                                Some(self.current.expect("This shouldn't fail.").data)
-                            },
-                            // We've reached the end of the list.
-                            None => {
-                                None
-                            }
-                        }
-                    },
-                    // The list is not empty but we have no current node, set
-                    // current to head and return current.data.
-                    None => {
-                        self.current = Some(headNode);
-                        Some(self.current.expect("This shouldn't fail.").data)
-                    }
-                }
-            },
-            // The list is empty. Return None.
-            None => None
+        let ret = None;
+
+        // If head is None, the list is empty. Return None.
+        if self.head.is_none() {
+            ret = None;
+        }
+        // If head is Some but current is none, set current to head and return self.current.data.
+        else if self.current.is_none() {
         }
         // If current.next is none (i.e. we've reached the end of the list), return None.
+        else if self.current.next.is_none() {
+        }
         // Else, advance to the next node and return self.current.data.
+        else {
+        }
+
+        ret
     }
 }
 
