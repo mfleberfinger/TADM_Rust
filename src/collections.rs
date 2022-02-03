@@ -59,7 +59,8 @@ mod linked_list_tests {
             l.insert(i);
         }
 
-        // The linked list should use an iterator to transparently return data.
+        // The linked list should use an iterator to transparently return a
+        // reference to the data field.
         // The calling code will not know about Nodes.
         let mut i = 0;
         for data in l {
@@ -82,15 +83,41 @@ struct Node<T> {
     next: Option<Box<Node<T>>>
 }
 
-impl Iterator for LinkedList<T> {
+impl<T> Iterator for LinkedList<T> {
     type Item = T;
 
-    fn next(&mut self) -> Option<self::Item> {
-        // If head is None (i.e. the list is empty) return None.
-        // If we've reached the end of the list, return None.
-        // If head is Some but current is None, set current to head and return
-        //  the head.data.
-        // Else, return self.next.data.
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.head {
+            // The list is not empty.
+            Some(headNode) => {
+                match self.current {
+                    // We have a current node.
+                    Some(currentNode) => {
+                        match currentNode.next {
+                            // There is a next node. Advance and return its value.
+                            Some(nextNode) => {
+                                self.current = Some(nextNode);
+                                Some(self.current.expect("This shouldn't fail.").data)
+                            },
+                            // We've reached the end of the list.
+                            None => {
+                                None
+                            }
+                        }
+                    },
+                    // The list is not empty but we have no current node, set
+                    // current to head and return current.data.
+                    None => {
+                        self.current = Some(headNode);
+                        Some(self.current.expect("This shouldn't fail.").data)
+                    }
+                }
+            },
+            // The list is empty. Return None.
+            None => None
+        }
+        // If current.next is none (i.e. we've reached the end of the list), return None.
+        // Else, advance to the next node and return self.current.data.
     }
 }
 
