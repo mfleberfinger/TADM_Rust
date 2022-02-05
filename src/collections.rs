@@ -42,6 +42,8 @@ impl<T> DynamicArray<T> {
 }
 */
 
+/* TODO: Apparently, linked lists are  not a beginner friendly data structure
+ * in Rust either. Come back to it later.
 #[cfg(test)]
 mod linked_list_tests {
     use super::*;
@@ -71,8 +73,6 @@ mod linked_list_tests {
     }
 }
 
-/* TODO: Apparently, this is also not a beginner friendly data structure in Rust.
- * Come back to it later.
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
     // The head of the linked list.
@@ -128,3 +128,6 @@ impl<T> LinkedList<T> {
     }
 }
 */
+
+
+
