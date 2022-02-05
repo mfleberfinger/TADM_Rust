@@ -183,6 +183,8 @@ impl<T> VecStack<T> {
     }
 
     /// Removes and returns the item on the top of the stack.
+    // TODO: This should return an Option<T>, there should be a way to
+    // get the number of items on the stack, or both.
     pub fn pop(&mut self) -> T {
         if let Some(item) = self.vector.pop() {
             item
@@ -190,5 +192,98 @@ impl<T> VecStack<T> {
         else {
             panic!("Cannot pop from an empty stack.");
         }
+    }
+}
+
+
+#[cfg(test)]
+mod heap_tests {
+    use super::*;
+
+    // Extracting from an empty heap should return None.
+    #[test]
+    fn extract_from_empty() {
+        //TODO: Implement this test.
+    }
+    
+    // Use heapsort to test that all values are inserted and extracted in the
+    // correct order.
+    #[test]
+    fn heapsort_test() {
+        let mut max_heap = Heap::new(true);
+        let mut min_heap = Heap::new(false);
+
+        // Sort an arbitrarily ordered list of integers in ascending and
+        // descending order by inserting into and removing from a min and max
+        // heap.
+        let arbitrary_order = vec![0, -3, -1, 3, 2, 1, -2];
+        for i in arbitrary_order {
+            min_heap.insert(i);
+            max_heap.insert(i);
+        }
+        assert_ascending_order(&mut min_heap);
+        assert_descending_order(&mut max_heap);
+
+        // The heaps should now be empty.
+        // Sort a list of integers that is already in ascending order.
+        for i in -3..4 {
+            min_heap.insert(i);
+            max_heap.insert(i);
+        }
+        assert_ascending_order(&mut min_heap);
+        assert_descending_order(&mut max_heap);
+
+        // The heaps should now be empty again.
+        // Sort a list of integers that is already in descending order.
+        for i in (-3..4).rev() {
+            min_heap.insert(i);
+            max_heap.insert(i);
+        }
+        assert_ascending_order(&mut min_heap);
+        assert_descending_order(&mut max_heap);
+    }
+
+    // Extracting everything from the min heap should result in ascending order.
+    fn assert_ascending_order(min_heap: &mut Heap<i32>) {
+        let expect_message = "Failed to extract all inserted elements from the heap.";
+        for i in -3..4 {
+            assert_eq!(i, min_heap.extract().expect(expect_message));
+        }
+    }
+
+    // Extracting everything from the max heap should result in descending order.
+    fn assert_descending_order(max_heap: &mut Heap<i32>) {
+        let expect_message = "Failed to extract all inserted elements from the heap.";
+        for i in (-3..4).rev() {
+            assert_eq!(i, max_heap.extract().expect(expect_message));
+        }
+    }
+}
+
+/// A heap. Can be configured as a min-heap or a max-heap when constructed.
+pub struct Heap<T> {
+    is_max_heap: bool,
+    vector: Vec<T>
+}
+
+impl<T> Heap<T>
+    where T: PartialEq
+{
+    pub fn new(is_max_heap: bool) -> Heap<T> {
+        Heap {
+            is_max_heap,
+            vector: Vec::new()
+        }
+    }
+
+    /// Inserts an item into the heap.
+    pub fn insert(&mut self, item: T) {
+
+    }
+
+    /// Removes the minimum or maximum value, depending on whether this is a
+    /// min or max heap, and returns it.
+    pub fn extract(&mut self) -> Option<T> {
+        self.vector.pop()
     }
 }
