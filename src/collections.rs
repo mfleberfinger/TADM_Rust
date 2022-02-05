@@ -1,5 +1,5 @@
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+//use std::cell::RefCell;
+//use std::rc::{Rc, Weak};
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -71,6 +71,8 @@ mod linked_list_tests {
     }
 }
 
+/* TODO: Apparently, this is also not a beginner friendly data structure in Rust.
+ * Come back to it later.
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
     // The head of the linked list.
@@ -125,3 +127,4 @@ impl<T> LinkedList<T> {
 
     }
 }
+*/
