@@ -129,5 +129,66 @@ impl<T> LinkedList<T> {
 }
 */
 
+#[cfg(test)]
+mod vec_stack_tests {
+    use super::*;
 
+    // Push some data to the stack. Pop it all off the stack. Verify that all
+    // of the data is returned in the correct order.
+    #[test]
+    fn push_and_pop() {
+        let mut stack = VecStack::new();
 
+        // Fill the stack.
+        for i in 0..10 {
+            stack.push(i);
+        }
+
+        // Empty the stack and make assertions.
+        for i in (0..10).rev() {
+            assert_eq!(i, stack.pop());
+        }
+    }
+
+    // Pop from an empty stack. This is an error on the part of the caller and
+    // should result in a panic.
+    #[test]
+    #[should_panic(expected = "Cannot pop from an empty stack.")]
+    fn pop_from_empty() {
+        let mut stack:VecStack<i32> = VecStack::new();
+        stack.pop();
+    }
+}
+
+/// A vector-based stack implementation.
+/// Data stored on the stack is owned by the stack. Ownership of data returned
+/// by pop() will be given to the caller of pop().
+// Implementing a queue this way probably wouldn't work but this should be easy.
+// Considering that vec<T> implements its own push and pop() this is trivial...
+pub struct VecStack<T> {
+    // The vector that stores our data.
+    vector: Vec<T>,
+}
+
+impl<T> VecStack<T> {
+    pub fn new() -> VecStack<T> {
+        VecStack {
+            vector: Vec::new()
+        }
+    }
+
+    /// Puts an item on the top of the stack.
+    pub fn push(&mut self, item: T) {
+        self.vector.push(item);
+    }
+
+    /// Removes and returns the item on the top of the stack.
+    pub fn pop(&mut self) -> T {
+        if let Some(item) = self.vector.pop() {
+            item
+        }
+        else {
+            panic!("Cannot pop from an empty stack.");
+        }
+    }
+}
