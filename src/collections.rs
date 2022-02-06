@@ -266,6 +266,7 @@ mod heap_tests {
         for i in (-3..4).rev() {
             let extracted = max_heap.extract().expect(expect_message);
             println!("Expected {}. Extracted {}", i, extracted);
+            println!("Max-heap contains: {:?}", max_heap);
             assert_eq!(i, extracted);
         }
     }
