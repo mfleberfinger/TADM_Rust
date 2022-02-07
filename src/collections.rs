@@ -1,5 +1,5 @@
-//use std::cell::RefCell;
-//use std::rc::{Rc, Weak};
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -42,8 +42,6 @@ impl<T> DynamicArray<T> {
 }
 */
 
-/* TODO: Apparently, linked lists are  not a beginner friendly data structure
- * in Rust either. Come back to it later.
 #[cfg(test)]
 mod linked_list_tests {
     use super::*;
@@ -76,40 +74,47 @@ mod linked_list_tests {
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
     // The head of the linked list.
-    // Owns the first node of the list.
-    head: Option<RefCell<Rc<Node<T>>>>,
+    head: Option<Box<Node<T>>>,
     // The current node of the linked list. Used by the iterator.
-    // Current should be a weak reference. It should not own anything.
-    current: RefCell<Weak<Node<T>>>
+    current: Option<Box<Node<T>>>
 }
 
 struct Node<T> {
     data: T,
-    // Each node owns its child.
-    next: Option<RefCell<Rc<Node<T>>>>
+    next: Option<Box<Node<T>>>
 }
 
 impl<T> Iterator for LinkedList<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ret = None;
 
         // If head is None, the list is empty. Return None.
         if self.head.is_none() {
-            ret = None;
+            None
         }
-        // If head is Some but current is none, set current to head and return self.current.data.
+        // If head is Some but current is none, set current to head and return
+        // the new self.current.data.
         else if self.current.is_none() {
+            // TODO: Start changing Boxes to Rcs and Weaks as appropriate to work through compiler
+            // errors. Reference the smart pointers chapter as needed.
+            self.current = self.head;
+            // We know there's something to unwrap() because we just put it there.
+            Some(self.current.as_ref().unwrap().data)
         }
+        // We know current is not none if we reach this, so we can use unwrap().
         // If current.next is none (i.e. we've reached the end of the list), return None.
-        else if self.current.next.is_none() {
+        else if self.current.as_ref().unwrap().next.is_none() {
+            None
         }
         // Else, advance to the next node and return self.current.data.
         else {
+            // We know there's something to unwrap here because the branches
+            // above this one have ensured it.
+            self.current = self.current.as_ref().unwrap().next;
+            // We know there's something to unwrap() because we just put it there.
+            Some(self.current.as_ref().unwrap().data)
         }
-
-        ret
     }
 }
 
@@ -127,7 +132,7 @@ impl<T> LinkedList<T> {
 
     }
 }
-*/
+
 
 #[cfg(test)]
 mod vec_stack_tests {
