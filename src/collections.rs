@@ -74,14 +74,14 @@ mod linked_list_tests {
 /// A linked list. Hides the low level details from the user.
 pub struct LinkedList<T> {
     // The head of the linked list.
-    head: Option<Box<Node<T>>>,
+    head: Option<Rc<Node<T>>>,
     // The current node of the linked list. Used by the iterator.
-    current: Option<Box<Node<T>>>
+    current: Option<Weak<Node<T>>>
 }
 
 struct Node<T> {
     data: T,
-    next: Option<Box<Node<T>>>
+    next: Option<Rc<Node<T>>>
 }
 
 impl<T> Iterator for LinkedList<T> {
@@ -94,26 +94,29 @@ impl<T> Iterator for LinkedList<T> {
             None
         }
         // If head is Some but current is none, set current to head and return
-        // the new self.current.data.
+        // the data in the current (and head) node.
         else if self.current.is_none() {
-            // TODO: Start changing Boxes to Rcs and Weaks as appropriate to work through compiler
-            // errors. Reference the smart pointers chapter as needed.
-            self.current = self.head;
-            // We know there's something to unwrap() because we just put it there.
-            Some(self.current.as_ref().unwrap().data)
+
+            self.current = Some(Rc::downgrade(&(self.head.unwrap())));
+            Some((*self.current.as_ref().unwrap().upgrade().unwrap()).data)
+        }
+        // If current is not none but its weak reference is, something went wrong.
+        else if self.current.as_ref().unwrap().upgrade().is_none() {
+            panic!("The weak reference in a LinkedList's current node is invalid.\
+                   This is probably a bug in LinkedList<T>'s implementation.");
         }
         // We know current is not none if we reach this, so we can use unwrap().
         // If current.next is none (i.e. we've reached the end of the list), return None.
-        else if self.current.as_ref().unwrap().next.is_none() {
+        else if self.current.as_ref().unwrap().upgrade().unwrap().next.is_none() {
             None
         }
         // Else, advance to the next node and return self.current.data.
         else {
             // We know there's something to unwrap here because the branches
             // above this one have ensured it.
-            self.current = self.current.as_ref().unwrap().next;
+            self.current = Some(Rc::downgrade(&((*(self.current.as_ref().unwrap().upgrade().unwrap())).next.unwrap())));
             // We know there's something to unwrap() because we just put it there.
-            Some(self.current.as_ref().unwrap().data)
+            Some((*self.current.as_ref().unwrap().upgrade().unwrap()).data)
         }
     }
 }
