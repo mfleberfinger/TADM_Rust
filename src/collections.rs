@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
@@ -50,9 +49,12 @@ mod linked_list_tests {
     fn insertion_test() {
         let mut l = LinkedList::<i32>::new();
         l.insert(10);
-        assert_eq!(l.iter().next(), 10);
+        assert_eq!(l.next().expect("Iterator should return the value in the list."),
+            10);
     }
 
+    // The linked list should use an iterator to transparently return data.
+    // The calling code will not know about Nodes.
     #[test]
     fn iteration_test() {
         let mut l = LinkedList::<i32>::new();
@@ -61,8 +63,10 @@ mod linked_list_tests {
             l.insert(i);
         }
 
-        // The linked list should use an iterator to transparently return data.
-        // The calling code will not know about Nodes.
+        assert_eq!((&mut l).count(), 10);
+
+        l.reset();
+
         let mut i = 0;
         for data in l {
             assert_eq!(data, i);
@@ -72,19 +76,28 @@ mod linked_list_tests {
 }
 
 /// A linked list. Hides the low level details from the user.
-pub struct LinkedList<T> {
+/// Only holds types that implement the Copy trait.
+// To make this easier, for now, the listed list will only support types that
+// implement Copy.
+pub struct LinkedList<T>
+    where T: Copy
+{
     // The head of the linked list.
     head: Option<Rc<Node<T>>>,
     // The current node of the linked list. Used by the iterator.
     current: Option<Weak<Node<T>>>
 }
 
-struct Node<T> {
+struct Node<T>
+    where T: Copy
+{
     data: T,
     next: Option<Rc<Node<T>>>
 }
 
-impl<T> Iterator for LinkedList<T> {
+impl<T> Iterator for LinkedList<T>
+    where T: Copy
+{
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -96,8 +109,7 @@ impl<T> Iterator for LinkedList<T> {
         // If head is Some but current is none, set current to head and return
         // the data in the current (and head) node.
         else if self.current.is_none() {
-
-            self.current = Some(Rc::downgrade(&(self.head.unwrap())));
+            self.current = Some(Rc::downgrade(&(self.head.as_ref().unwrap())));
             Some((*self.current.as_ref().unwrap().upgrade().unwrap()).data)
         }
         // If current is not none but its weak reference is, something went wrong.
@@ -114,14 +126,21 @@ impl<T> Iterator for LinkedList<T> {
         else {
             // We know there's something to unwrap here because the branches
             // above this one have ensured it.
-            self.current = Some(Rc::downgrade(&((*(self.current.as_ref().unwrap().upgrade().unwrap())).next.unwrap())));
+            self.current =
+                Some(
+                    Rc::downgrade(
+                        &((*(self.current.as_ref().unwrap().upgrade().unwrap())).next.as_ref().unwrap())
+                    )
+                );
             // We know there's something to unwrap() because we just put it there.
             Some((*self.current.as_ref().unwrap().upgrade().unwrap()).data)
         }
     }
 }
 
-impl<T> LinkedList<T> {
+impl<T> LinkedList<T>
+    where T: Copy
+{
     /// Returns a new empty list.
     pub fn new() -> LinkedList<T> {
         LinkedList::<T> {
@@ -130,9 +149,20 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Resets the list's internal pointer to the head.
+    /// Allows the list to be iterated over from the start.
+    pub fn reset(&mut self) {
+        self.current = Some(Rc::downgrade(&(self.head.as_ref().unwrap())));
+    }
+
     /// Inserts a new node containing data at the beginning of the list.
     pub fn insert(&mut self, data: T) {
-
+        let n = Node<T> {
+            data,
+            next = None
+        }
+        // TODO: Move the head node to n.next.
+        // Move n to self.head.
     }
 }
 
