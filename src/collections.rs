@@ -67,10 +67,13 @@ mod linked_list_tests {
 
         l.reset();
 
-        let mut i = 0;
+        // Insertion into the list occurs at the head, so the values inserted
+        // above will be returned in reverse order.
+        let mut i = 9;
         for data in l {
+            println!("Next list item: {}; Expecting: {}", data, i);
             assert_eq!(data, i);
-            i += 1;
+            i -= 1;
         }
     }
 }
@@ -149,20 +152,30 @@ impl<T> LinkedList<T>
         }
     }
 
-    /// Resets the list's internal pointer to the head.
+    /// Resets the list's internal pointer.
     /// Allows the list to be iterated over from the start.
     pub fn reset(&mut self) {
-        self.current = Some(Rc::downgrade(&(self.head.as_ref().unwrap())));
+        self.current = None
     }
 
-    /// Inserts a new node containing data at the beginning of the list.
+    /// Inserts a new item at the head of the list.
     pub fn insert(&mut self, data: T) {
-        let n = Node<T> {
+        let mut n: Node<T> = Node {
             data,
-            next = None
+            next: None
+        };
+
+        match &self.head {
+            Some(h) => {
+                // Put a reference to the head node in n.next.
+                n.next = Some(Rc::clone(&h));
+                // Make n the head node.
+                self.head = Some(Rc::new(n));
+            },
+            None => { 
+                self.head = Some(Rc::new(n));
+            }
         }
-        // TODO: Move the head node to n.next.
-        // Move n to self.head.
     }
 }
 
