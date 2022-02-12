@@ -82,6 +82,9 @@ mod linked_list_tests {
 /// Only holds types that implement the Copy trait.
 // To make this easier, for now, the listed list will only support types that
 // implement Copy.
+// TODO: Learn how to properly handle linked data structures before attempting
+// graphs or trees. This implementation is crap.
+// TODO: Implement a function to remove items from the list.
 pub struct LinkedList<T>
     where T: Copy
 {
