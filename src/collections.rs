@@ -1,4 +1,6 @@
 use std::rc::{Rc, Weak};
+use std::hash;
+use std::ops;
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -83,8 +85,10 @@ mod linked_list_tests {
 // To make this easier, for now, the listed list will only support types that
 // implement Copy.
 // TODO: Learn how to properly handle linked data structures before attempting
-// graphs or trees. This implementation is crap.
+// graphs or trees*. This implementation is crap.
 // TODO: Implement a function to remove items from the list.
+// * A note on graphs and trees: It may be reasonable to make a purely Vec<T>
+// based adjacency list, eliminating the need for pointers.
 pub struct LinkedList<T>
     where T: Copy
 {
@@ -448,3 +452,159 @@ impl<T> Heap<T>
     }
 }
 
+
+#[cfg(test)]
+mod hashset_tests {
+    use super::*;
+
+    // Tests insertion of a duplicate value (should not be allowed).
+    #[test]
+    #[should_panic(expected = "Cannot insert a duplicate value into a hashset.")]
+    fn insert_duplicate() {
+        let mut h = Hashset::new();
+        h.insert(1);
+        h.insert(1);
+    }
+
+    // Tests insertion and lookup.
+    #[test]
+    fn insert_and_lookup() {
+        let mut h = Hashset::new();
+        // Test with one element in the set.
+        h.insert(0);
+        assert_eq!(h[0], 0);
+
+        for i in 1..100 {
+            h.insert(i);
+        }
+
+        // Test with 100 elements in the set.
+        for i in 0..100 {
+            assert_eq!(h[i], i);
+        }
+    }
+
+    // Tests insertion and the contains() function.
+    #[test]
+    fn insert_and_contains() {
+        let mut h = Hashset::new();
+        // Test with 1 element in the set.
+        h.insert(0);
+        assert!(h.contains(0));
+        assert!(!h.contains(1));
+
+        for i in 1..100 {
+            h.insert(i);
+        }
+
+        // Test with 100 elements in the set.
+        for i in 0..100 {
+            assert!(h.contains(i));
+            assert!(!h.contains(-1 * i));
+        }
+    }
+
+    // Tests insertion and deletion.
+    #[test]
+    fn insert_and_remove() {
+        let mut h = Hashset::new();
+        // Test with 1 element in the set.
+        h.insert(0);
+        assert!(h.contains(0));
+        h.remove(0);
+        assert!(!h.contains(0));
+
+        for i in 0..100 {
+            h.insert(i);
+        }
+
+        // Remove the last element inserted.
+        h.remove(99);
+        assert!(!h.contains(99));
+        
+        // Remove everything else.
+        for i in 0..99 {
+            h.remove(i);
+            assert!(!h.contains(i));
+        }
+    }
+
+    // Tests that the remove() function returns the value.
+    #[test]
+    fn insert_and_reclaim_ownership() {
+        let mut h = Hashset::new();
+
+        h.insert(String::from("This is a test."));
+        let s = h.remove(String::from("This is a test."));
+
+        assert_eq!(s, "This is a test.");
+    }
+}
+
+/// A simple hashset.
+/// Allows insertion, retrieval, and deletion of elements.
+// TODO: Start by using the built in  hash functions. Maybe implement a simple
+// one later if desired.
+pub struct Hashset<T>
+    where T: hash::Hash
+{
+    vector: Vec<Option<T>>,
+    // Even though the vector keeps track of its length and capacity, we need
+    // to keep track of the part of the vector we have initialized to None.
+    capacity: usize
+}
+
+impl<T> Hashset<T>
+    where T: hash::Hash
+{
+    /// Creates a new empty hashset.
+    pub fn new() -> Hashset<T> {
+        let mut h = Hashset::<T> {
+            vector: Vec::new(),
+            capacity: 10
+        };
+
+        for _ in 0..h.capacity {
+            h.vector.push(None);
+        }
+
+        h
+    }
+
+    /// Inserts a new value into the hashset.
+    pub fn insert(&mut self, value: T) {
+        // [should_panic(expected = "Cannot insert a duplicate value into a hashset.")]
+    }
+
+    /// Returns true if the hashset contains the given value.
+    /// Otherwise, returns false.
+    pub fn contains(&self, value: T) -> bool {
+        false
+    }
+
+    /// Removes a value from the hashset and returns it.
+    pub fn remove(&mut self, value: T) -> T {
+        // Push none and swap it with the removed element to preserve the positions
+        // of the elements in the vector.
+        self.vector.push(None);
+        self.vector.swap_remove(0).unwrap()
+    }
+}
+
+// Allows hashset elements to be accessed with the "[]" syntax.
+impl<T> ops::Index<T> for Hashset<T>
+    where T: hash::Hash
+{
+    type Output = T;
+
+    fn index(&self, key: T) -> &Self::Output {
+        // TODO: We're ignoring the key parameter right now so we can just run the
+        // failing tests but we'll use the hash of the key parameter in the
+        // real implementation.
+        &self.vector[0].as_ref().expect("No reason to expect this but we're expecting a failure anyway.")
+    }
+}
+
+// TODO: Write a key value pair struct that implements the Hash trait, causing
+// it to be hashed by the key only, regardless of the value. Use this struct
+// with the hashset to implement a hashmap.
