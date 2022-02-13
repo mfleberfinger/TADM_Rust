@@ -539,6 +539,58 @@ mod hashset_tests {
 
         assert_eq!(s, "This is a test.");
     }
+
+    // "Deletion in an open addressing scheme can get ugly, since removing one
+    // element might break a chain of insertions, making some elements
+    // inaccessible. We have no alternative but to reinsert all the items in
+    // the run following the new hole."
+    // Insert a number of elements, then delete them one by one, accessing all
+    // elements after each deletion and asserting that they are found.
+    #[test]
+    fn remove_and_lookup() {
+        let mut h = Hashset::new();
+        
+        // Test with 10 elements.
+        for i in 0..10 {
+            h.insert(i);
+        }
+        for i in 0..10 {
+            h.remove(i);
+            for j in (i + 1)..10 {
+                assert_eq!(h[j], j);
+            }
+        }
+
+        // Test with 100 elements.
+        for i in 0..100 {
+            h.insert(i);
+        }
+        for i in 0..100 {
+            h.remove(i);
+            for j in (i + 1)..10 {
+                assert_eq!(h[j], j);
+            }
+        }
+    }
+
+    // Make sure count() always returns the number of elements in the set.
+    // Start with 0, do some inserts, checking the count each time, then delete
+    // everything, checking the count each time.
+    #[test]
+    fn insert_and_count() {
+        let mut h = Hashset::new();
+
+        for i in 0..100 {
+            assert_eq!(h.count(), i);
+            h.insert(i);
+        }
+
+        for i in (0..100).reverse() {
+            h.remove(i);
+            assert_eq!(h.count(), i);
+        }
+    }
+
 }
 
 /// A simple hashset.
@@ -551,7 +603,9 @@ pub struct Hashset<T>
     vector: Vec<Option<T>>,
     // Even though the vector keeps track of its length and capacity, we need
     // to keep track of the part of the vector we have initialized to None.
-    capacity: usize
+    capacity: usize,
+    // We also need to keep track of the number of actual elements we have (not Nones).
+    count: usize
 }
 
 impl<T> Hashset<T>
@@ -583,11 +637,20 @@ impl<T> Hashset<T>
     }
 
     /// Removes a value from the hashset and returns it.
+    // "Deletion in an open addressing scheme can get ugly, since removing one
+    // element might break a chain of insertions, making some elements
+    // inaccessible. We have no alternative but to reinsert all the items in
+    // the run following the new hole."
     pub fn remove(&mut self, value: T) -> T {
         // Push none and swap it with the removed element to preserve the positions
         // of the elements in the vector.
         self.vector.push(None);
         self.vector.swap_remove(0).unwrap()
+    }
+
+    /// Returns the total number of elements in the set.
+    pub fn count(&self) {
+        self.count
     }
 }
 
