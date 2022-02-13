@@ -1,6 +1,8 @@
 use std::rc::{Rc, Weak};
-use std::hash;
+use std::hash::{Hash, Hasher};
 use std::ops;
+// We'll use Rust's hasher instead of writing our own for now.
+use std::collections::hash_map::DefaultHasher;
 
 /* TODO: Rust doesn't allow dynamic sizing of its standard arrays.
  * Apparently, implementing a dynamic array requires "advanced" Rust,
@@ -490,8 +492,8 @@ mod hashset_tests {
         let mut h = Hashset::new();
         // Test with 1 element in the set.
         h.insert(0);
-        assert!(h.contains(0));
-        assert!(!h.contains(1));
+        assert!(h.contains(&0));
+        assert!(!h.contains(&1));
 
         for i in 1..100 {
             h.insert(i);
@@ -499,8 +501,8 @@ mod hashset_tests {
 
         // Test with 100 elements in the set.
         for i in 0..100 {
-            assert!(h.contains(i));
-            assert!(!h.contains(-1 * i));
+            assert!(h.contains(&i));
+            assert!(!h.contains(&(-1 * i)));
         }
     }
 
@@ -510,22 +512,22 @@ mod hashset_tests {
         let mut h = Hashset::new();
         // Test with 1 element in the set.
         h.insert(0);
-        assert!(h.contains(0));
-        h.remove(0);
-        assert!(!h.contains(0));
+        assert!(h.contains(&0));
+        h.remove(&0);
+        assert!(!h.contains(&0));
 
         for i in 0..100 {
             h.insert(i);
         }
 
         // Remove the last element inserted.
-        h.remove(99);
-        assert!(!h.contains(99));
+        h.remove(&99);
+        assert!(!h.contains(&99));
         
         // Remove everything else.
         for i in 0..99 {
-            h.remove(i);
-            assert!(!h.contains(i));
+            h.remove(&i);
+            assert!(!h.contains(&i));
         }
     }
 
@@ -535,7 +537,7 @@ mod hashset_tests {
         let mut h = Hashset::new();
 
         h.insert(String::from("This is a test."));
-        let s = h.remove(String::from("This is a test."));
+        let s = h.remove(&String::from("This is a test."));
 
         assert_eq!(s, "This is a test.");
     }
@@ -555,7 +557,7 @@ mod hashset_tests {
             h.insert(i);
         }
         for i in 0..10 {
-            h.remove(i);
+            h.remove(&i);
             for j in (i + 1)..10 {
                 assert_eq!(h[j], j);
             }
@@ -566,7 +568,7 @@ mod hashset_tests {
             h.insert(i);
         }
         for i in 0..100 {
-            h.remove(i);
+            h.remove(&i);
             for j in (i + 1)..10 {
                 assert_eq!(h[j], j);
             }
@@ -585,8 +587,8 @@ mod hashset_tests {
             h.insert(i);
         }
 
-        for i in (0..100).reverse() {
-            h.remove(i);
+        for i in (0..100).rev() {
+            h.remove(&i);
             assert_eq!(h.count(), i);
         }
     }
@@ -598,7 +600,7 @@ mod hashset_tests {
 // TODO: Start by using the built in  hash functions. Maybe implement a simple
 // one later if desired.
 pub struct Hashset<T>
-    where T: hash::Hash
+    where T: Hash + Eq
 {
     vector: Vec<Option<T>>,
     // Even though the vector keeps track of its length and capacity, we need
@@ -609,13 +611,14 @@ pub struct Hashset<T>
 }
 
 impl<T> Hashset<T>
-    where T: hash::Hash
+    where T: Hash + Eq
 {
     /// Creates a new empty hashset.
     pub fn new() -> Hashset<T> {
         let mut h = Hashset::<T> {
             vector: Vec::new(),
-            capacity: 10
+            capacity: 10,
+            count: 0
         };
 
         for _ in 0..h.capacity {
@@ -626,14 +629,45 @@ impl<T> Hashset<T>
     }
 
     /// Inserts a new value into the hashset.
+    /// #Panics
+    /// This function will panic if an attempt is made to insert a value that
+    /// already exists in the hashset.
     pub fn insert(&mut self, value: T) {
-        // [should_panic(expected = "Cannot insert a duplicate value into a hashset.")]
+        let next_index = self.get_index(&value, true);
+
+        // Increase our capacity if the vector is more than 3/4 full.
+        // When the vector is 3/4 full, we expect to probe 4 times on average
+        // before finding an available slot for the new item.
+        // These numbers come from the "Performance of Open Addressing" section
+        // of the document found at:
+        //      https://courses.csail.mit.edu/6.006/spring11/rec/rec07.pdf
+        if ((self.count + 1) as f64) > (self.capacity as f64) * 0.75 {
+            self.grow();
+        }
+
+        // TODO: get_index(..., true) should wrap around when probing and panic
+        // if it can't find an open slot after iterating through all elements
+        // in the vector. Otherwise, there's going to be a big problem where
+        // insert() calls grow(), grow() call insert(), get_index() hits the
+        // end of the array because some existing element hashed there from the
+        // start, and grow() gets called again, causing an attempt to grow() the
+        // array again before the first grow() call finishes reinserting things.
+
+        match next_index {
+            Some(i) => {
+                self.vector[i] = Some(value);
+            }
+            None => {
+                self.grow();
+                self.insert(value);
+            }
+        }
     }
 
     /// Returns true if the hashset contains the given value.
     /// Otherwise, returns false.
-    pub fn contains(&self, value: T) -> bool {
-        false
+    pub fn contains(&self, value: &T) -> bool {
+        self.get_index(&value, false).is_some()
     }
 
     /// Removes a value from the hashset and returns it.
@@ -641,7 +675,7 @@ impl<T> Hashset<T>
     // element might break a chain of insertions, making some elements
     // inaccessible. We have no alternative but to reinsert all the items in
     // the run following the new hole."
-    pub fn remove(&mut self, value: T) -> T {
+    pub fn remove(&mut self, value: &T) -> T {
         // Push none and swap it with the removed element to preserve the positions
         // of the elements in the vector.
         self.vector.push(None);
@@ -649,21 +683,89 @@ impl<T> Hashset<T>
     }
 
     /// Returns the total number of elements in the set.
-    pub fn count(&self) {
+    pub fn count(&self) -> usize {
         self.count
     }
+
+    // Calculates and returns the hash of to_hash.
+    fn calculate_hash(to_hash: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        to_hash.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    // Returns the lowest index in vector that may contain the given value.
+    // If there is a collision, this is the index from which sequential probing
+    // would begin.
+    fn get_first_index(&self, value: &T) -> usize {
+        // As long as this code doesn't end up on a 128-bit processor, it should
+        // be okay to convert usize into u64.
+        // It should also be okay to convert the u64 resulting from this
+        // remainder operation back into a usize because it can be no larger
+        // than the original usize.
+        (Hashset::<T>::calculate_hash(value) % (self.capacity as u64)) as usize
+    }
+
+    // If the get_next parameter is false:
+    //      Get the index in the vector where a value resides, or None if the
+    //      value is not found.
+    // If the get_next parameter is true:
+    //      Get the index in the vector where we should insert the given value,
+    //      or none if we probe to the end of the vector. Panic if the given
+    //      value is already in the vector.
+    fn get_index(&self, value: &T, get_next: bool) -> Option<usize> {
+        let mut found = false;
+
+        // If the value is not in the first index, iterate from the first index
+        // until we either find the value, find None, or find the end of the vector.
+        let mut i = self.get_first_index(value);
+        // We don't need to make sure i is less than the vector length here
+        // because get_first_index() should return an index we already
+        // initialized.
+        found = self.vector[i].is_some()
+            && self.vector[i].as_ref().unwrap() == value;
+        while !found && i + 1 < self.vector.len() && self.vector[i + 1].is_some() {
+            i += 1;
+            found = self.vector[i].as_ref().unwrap() == value;
+        }
+
+        if get_next {
+            if found {
+                panic!("Cannot insert a duplicate value into a hashset.");
+            }
+            else if i >= self.vector.len() {
+                None
+            }
+            else {
+                Some(i)
+            }
+        }
+        else {
+            if !found {
+                None
+            }
+            else {
+                Some(i)
+            }
+        }
+    }
+
+    fn grow(&mut self) {
+        
+    }
+
 }
 
 // Allows hashset elements to be accessed with the "[]" syntax.
 impl<T> ops::Index<T> for Hashset<T>
-    where T: hash::Hash
+    where T: Hash + Eq
 {
     type Output = T;
 
-    fn index(&self, key: T) -> &Self::Output {
-        // TODO: We're ignoring the key parameter right now so we can just run the
-        // failing tests but we'll use the hash of the key parameter in the
-        // real implementation.
+    fn index(&self, value: T) -> &Self::Output {
+        // TODO: We're ignoring the value parameter right now so we can just run
+        // the failing tests but we'll use the hash of the value parameter in
+        // the real implementation.
         &self.vector[0].as_ref().expect("No reason to expect this but we're expecting a failure anyway.")
     }
 }
@@ -671,3 +773,5 @@ impl<T> ops::Index<T> for Hashset<T>
 // TODO: Write a key value pair struct that implements the Hash trait, causing
 // it to be hashed by the key only, regardless of the value. Use this struct
 // with the hashset to implement a hashmap.
+// It will probably be necessary to implement the Eq(?) trait as well and have
+// it test equality by checking the equality of the keys only.
