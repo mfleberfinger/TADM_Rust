@@ -615,9 +615,10 @@ impl<T> Hashset<T>
 {
     /// Creates a new empty hashset.
     pub fn new() -> Hashset<T> {
+        let capacity = 10;
         let mut h = Hashset::<T> {
-            vector: Vec::new(),
-            capacity: 10,
+            vector: Vec::with_capacity(capacity),
+            capacity: capacity,
             count: 0
         };
 
@@ -656,6 +657,7 @@ impl<T> Hashset<T>
         match next_index {
             Some(i) => {
                 self.vector[i] = Some(value);
+                self.count += 1;
             }
             None => {
                 self.grow();
@@ -750,8 +752,23 @@ impl<T> Hashset<T>
         }
     }
 
+    // Double the size of the initialized vector and reinsert everything.
     fn grow(&mut self) {
+        // Remove all of the elements from the vector, drop the Nones, and put
+        // the Somes in a local vector.
+        let mut data: Vec<_> = self.vector.drain(..).filter(|x| x.is_some()).collect();
+        self.capacity = self.capacity * 2;
+        // Resize the vector and fill the new space with None.
+        // The "|| None" is a closure that returns None.
+         self.vector.resize_with(self.capacity, || None);
+
         
+        // Reinsert all of the data.
+        for i in (0..data.len()).rev() {
+            // We can unwrap because we guaranteed that data only contains Somes
+            // when we created it.
+            self.insert(data.swap_remove(i).unwrap());
+        }
     }
 
 }
