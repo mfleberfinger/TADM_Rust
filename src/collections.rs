@@ -598,7 +598,7 @@ mod hashset_tests {
 /// A simple hashset.
 /// Allows insertion, retrieval, and deletion of elements.
 // TODO: Start by using the built in  hash functions. Maybe implement a simple
-// one later if desired.
+// hash function later if desired.
 pub struct Hashset<T>
     where T: Hash + Eq
 {
@@ -634,7 +634,6 @@ impl<T> Hashset<T>
     /// This function will panic if an attempt is made to insert a value that
     /// already exists in the hashset.
     pub fn insert(&mut self, value: T) {
-        let next_index = self.get_index(&value, true);
 
         // Increase our capacity if the vector is more than 3/4 full.
         // When the vector is 3/4 full, we expect to probe 4 times on average
@@ -646,20 +645,14 @@ impl<T> Hashset<T>
             self.grow();
         }
 
-        // TODO: get_index(..., true) should wrap around when probing and panic
-        // if it can't find an open slot after iterating through all elements
-        // in the vector. Otherwise, there's going to be a big problem where
-        // insert() calls grow(), grow() call insert(), get_index() hits the
-        // end of the array because some existing element hashed there from the
-        // start, and grow() gets called again, causing an attempt to grow() the
-        // array again before the first grow() call finishes reinserting things.
-
+        let next_index = self.get_index(&value, true);
         match next_index {
             Some(i) => {
                 self.vector[i] = Some(value);
                 self.count += 1;
             }
             None => {
+                // If we're out of space, grow the hashset and try inserting again.
                 self.grow();
                 self.insert(value);
             }
@@ -696,7 +689,7 @@ impl<T> Hashset<T>
         hasher.finish()
     }
 
-    // Returns the lowest index in vector that may contain the given value.
+    // Returns the index in the vector that the given value hashes to.
     // If there is a collision, this is the index from which sequential probing
     // would begin.
     fn get_first_index(&self, value: &T) -> usize {
@@ -708,45 +701,52 @@ impl<T> Hashset<T>
         (Hashset::<T>::calculate_hash(value) % (self.capacity as u64)) as usize
     }
 
-    // If the get_next parameter is false:
+    // If the is_insert parameter is false:
     //      Get the index in the vector where a value resides, or None if the
     //      value is not found.
-    // If the get_next parameter is true:
+    // If the is_insert parameter is true:
     //      Get the index in the vector where we should insert the given value,
-    //      or none if we probe to the end of the vector. Panic if the given
-    //      value is already in the vector.
-    fn get_index(&self, value: &T, get_next: bool) -> Option<usize> {
-        let mut found = false;
+    //      or none if we are out of space. Panic if the given value is already
+    //      in the vector.
+    fn get_index(&self, value: &T, is_insert: bool) -> Option<usize> {
+        let mut found_value = false;
 
-        // If the value is not in the first index, iterate from the first index
-        // until we either find the value, find None, or find the end of the vector.
+        // Get the index the value hashes to.
         let mut i = self.get_first_index(value);
-        // We don't need to make sure i is less than the vector length here
+        // We don't need to make sure i is less than our capacity here
         // because get_first_index() should return an index we already
         // initialized.
-        found = self.vector[i].is_some()
+        found_value = self.vector[i].is_some()
             && self.vector[i].as_ref().unwrap() == value;
-        while !found && i + 1 < self.vector.len() && self.vector[i + 1].is_some() {
-            i += 1;
-            found = self.vector[i].as_ref().unwrap() == value;
+        // j tracks how many times we've iterated. While doing our sequential probe,
+        // we may wrap around to the start of the vector, resetting i to 0 at
+        // most once.
+        let mut j = 0;
+        while !found_value && j + 1 < self.capacity &&
+            self.vector[(i + 1) % self.capacity].is_some() {
+            i = (i + 1) % self.capacity;
+            j += 1;
+            found_value = self.vector[i].as_ref().unwrap() == value;
         }
 
-        if get_next {
-            if found {
+        if is_insert {
+            if found_value {
                 panic!("Cannot insert a duplicate value into a hashset.");
             }
-            else if i >= self.vector.len() {
+            else if j + 1 >= self.capacity {
                 None
             }
             else {
-                Some(i)
+                // Return the index of the first empty space.
+                Some((i + 1) % self.capacity)
             }
         }
         else {
-            if !found {
+            if !found_value {
                 None
             }
             else {
+                // Return the index where we found the value.
                 Some(i)
             }
         }
