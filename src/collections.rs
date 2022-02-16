@@ -596,6 +596,31 @@ mod hashset_tests {
         }
     }
 
+    #[test]
+    #[should_panic(expected = "Encountered attempt to look up a value not in the hashset")]
+    fn invalid_lookup_empty() {
+        let mut h = Hashset::new();
+        h[1];
+    }
+    #[test]
+    #[should_panic(expected = "Encountered attempt to look up a value not in the hashset")]
+    fn invalid_lookup_before_grow() {
+        let mut h = Hashset::new();
+        h.insert(2);
+        h[1];
+    }
+    #[test]
+    #[should_panic(expected = "Encountered attempt to look up a value not in the hashset")]
+    fn invalid_lookup_after_grow() {
+        let mut h = Hashset::new();
+
+        for i in 1..100 {
+            h.insert(i);
+        }
+
+        h[1];
+    }
+
 }
 
 /// A simple hashset.
@@ -784,17 +809,37 @@ impl<T> Hashset<T>
 
 }
 
-// Allows hashset elements to be accessed with the "[]" syntax.
+/// Allows hashset elements to be accessed with the "[]" syntax.
+/// #Panics
+/// This will panic if the requested element is not in the set.
+// Undocumented panic: May panic if there is a bug in contains() or get_index().
 impl<T> ops::Index<T> for Hashset<T>
     where T: Hash + Eq
 {
     type Output = T;
 
     fn index(&self, value: T) -> &Self::Output {
-        // TODO: We're ignoring the value parameter right now so we can just run
-        // the failing tests but we'll use the hash of the value parameter in
-        // the real implementation.
-        &self.vector[0].as_ref().expect("No reason to expect this but we're expecting a failure anyway.")
+        if !self.contains(&value) {
+            panic!("Encountered attempt to look up a value not in the hashset");
+        }
+        
+        match self.get_index(&value, false) {
+            Some(index) => {
+                match self.vector[index].as_ref() {
+                    Some(reference) => {
+                        reference
+                    },
+                    None => {
+                        panic!("If get_index(&value, false) succeeds, a valid \
+                            index into the vector should be returned.");
+                    }
+                }
+            },
+            None => {
+                panic!("Hashset<T>.get_index(&value, false) should always succeed \
+                    if the hashset contains the given value.");
+            }
+        }
     }
 }
 
