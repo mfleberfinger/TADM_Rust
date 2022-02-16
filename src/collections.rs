@@ -500,8 +500,9 @@ mod hashset_tests {
         }
 
         // Test with 100 elements in the set.
-        for i in 0..100 {
+        for i in 1..100 {
             assert!(h.contains(&i));
+            println!("-1 * {} = {}", i, (-1 * i));
             assert!(!h.contains(&(-1 * i)));
         }
     }
