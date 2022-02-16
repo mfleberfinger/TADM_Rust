@@ -587,6 +587,8 @@ mod hashset_tests {
             h.insert(i);
         }
 
+        assert_eq!(h.count(), 100);
+
         for i in (0..100).rev() {
             h.remove(&i);
             assert_eq!(h.count(), i);
@@ -634,6 +636,10 @@ impl<T> Hashset<T>
     /// This function will panic if an attempt is made to insert a value that
     /// already exists in the hashset.
     pub fn insert(&mut self, value: T) {
+        self.insert_internal(value, true);
+    }
+
+    fn insert_internal(&mut self, value: T, increment_count: bool) {
 
         // Increase our capacity if the vector is more than 3/4 full.
         // When the vector is 3/4 full, we expect to probe 4 times on average
@@ -649,12 +655,16 @@ impl<T> Hashset<T>
         match next_index {
             Some(i) => {
                 self.vector[i] = Some(value);
-                self.count += 1;
+                // We don't want to increment the count if we're reinserting
+                // after increasing capacity.
+                if increment_count {
+                    self.count += 1;
+                }
             }
             None => {
                 // If we're out of space, grow the hashset and try inserting again.
                 self.grow();
-                self.insert(value);
+                self.insert_internal(value, true);
             }
         }
     }
@@ -767,7 +777,7 @@ impl<T> Hashset<T>
         for i in (0..data.len()).rev() {
             // We can unwrap because we guaranteed that data only contains Somes
             // when we created it.
-            self.insert(data.swap_remove(i).unwrap());
+            self.insert_internal(data.swap_remove(i).unwrap(), false);
         }
     }
 
