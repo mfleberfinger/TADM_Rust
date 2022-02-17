@@ -580,7 +580,7 @@ mod hashset_tests {
     // Start with 0, do some inserts, checking the count each time, then delete
     // everything, checking the count each time.
     #[test]
-    fn insert_and_count() {
+    fn count_test() {
         let mut h = Hashset::new();
 
         for i in 0..100 {
@@ -614,13 +614,27 @@ mod hashset_tests {
     fn invalid_lookup_after_grow() {
         let mut h = Hashset::new();
 
-        for i in 1..100 {
+        for i in 2..103 {
             h.insert(i);
         }
 
         h[1];
     }
 
+    #[test]
+    #[should_panic(expected = "Encountered attempt to remove a value not in the hashset")]
+    fn invalid_remove_empty() {
+        let mut h = Hashset::new();
+        h.remove(&String::from("This doesn't exist."));
+    }
+
+    #[test]
+    #[should_panic(expected = "Encountered attempt to remove a value not in the hashset")]
+    fn invalid_remove_not_empty() {
+        let mut h = Hashset::new();
+        h.insert(String::from("Thing"));
+        h.remove(&String::from("This doesn't exist."));
+    }
 }
 
 /// A simple hashset.
@@ -707,10 +721,38 @@ impl<T> Hashset<T>
     // inaccessible. We have no alternative but to reinsert all the items in
     // the run following the new hole."
     pub fn remove(&mut self, value: &T) -> T {
+
+        if !self.contains(&value) {
+            panic!("Encountered attempt to remove a value not in the hashset");
+        }
+
+        let i = self.get_index(value, false).unwrap();
+        let ret = self.remove_no_reinsert(i);
+        self.count -= 1;
+
+        // Find all items in the run after the removed item (if there are any).
+        let mut run = Vec::new();
+        let mut j = i + 1;
+        while self.vector[(j + 1) % self.capacity].is_some() {
+            j = (j + 1) % self.capacity;
+            run.push(self.remove_no_reinsert(j));
+        }
+        // Reinsert all of the items from the run.
+        for _ in 0..run.len() {
+            self.insert_internal(run.pop().unwrap(), false);
+        }
+
+
+        ret
+    }
+
+    // Remove an element by index and return ownership.
+    // The calling function must check for a broken run and handle it appropriately.
+    fn remove_no_reinsert(&mut self, i: usize) -> T {
         // Push none and swap it with the removed element to preserve the positions
         // of the elements in the vector.
         self.vector.push(None);
-        self.vector.swap_remove(0).unwrap()
+        self.vector.swap_remove(i).unwrap()
     }
 
     /// Returns the total number of elements in the set.
