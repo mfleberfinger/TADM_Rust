@@ -1,3 +1,8 @@
-Failing tests that should pass:
-	- insert_and_contains
-	- insert_and_count
+TODO:
+	search and sorting algorithms from TADM
+	
+	learn how to properly handle linked data structures in Rust
+
+	TADM trees
+
+	TADM graphs
