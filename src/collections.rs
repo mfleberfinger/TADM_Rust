@@ -732,7 +732,7 @@ impl<T> Hashset<T>
 
         // Find all items in the run after the removed item (if there are any).
         let mut run = Vec::new();
-        let mut j = i + 1;
+        let mut j = i;
         while self.vector[(j + 1) % self.capacity].is_some() {
             j = (j + 1) % self.capacity;
             run.push(self.remove_no_reinsert(j));
