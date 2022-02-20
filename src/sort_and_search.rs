@@ -1,4 +1,54 @@
 use std::cmp::Ord;
+use crate::heap::Heap;
+
+#[cfg(test)]
+mod test_helpers {
+    // Asserts that the given iterator is sorted in ascending order if the
+    // ascending argument is true. Otherwise, asserts that the iterator is in
+    // descending order.
+    // This function assumes that the iterator has not already been iterated.
+    pub fn assert_sorted<T, U>(mut iterator: T, ascending: bool)
+        where
+        T: Iterator<Item = U>,
+        U: PartialOrd
+    {
+        // If the iterator is empty or only contains one element, it's trivially
+        // true that the iterator is sorted.
+        if let Some(first) = iterator.next() {
+            let mut prev = first;
+            for i in iterator {
+                assert!((ascending && i >= prev) || (!ascending && i <= prev));
+                prev = i;
+            }
+        }
+    }
+
+    // Testing the test.
+    #[test]
+    fn assert_sorted_pass_test() {
+        let v: Vec<i32> = Vec::new();
+        assert_sorted(v.iter(), true);
+        assert_sorted(v.iter(), false);
+        let v = vec![1,2,3];
+        assert_sorted(v.iter(), true);
+        let v = vec![3,2,1];
+        assert_sorted(v.iter(), false);
+    }
+    // Testing the test.
+    #[test]
+    #[should_panic]
+    fn assert_sorted_fail_test_asc() {
+        let v = vec![3,2,1];
+        assert_sorted(v.iter(), true);
+    }
+    // Testing the test.
+    #[test]
+    #[should_panic]
+    fn assert_sorted_fail_test_desc() {
+        let v = vec![1,2,3];
+        assert_sorted(v.iter(), false);
+    }
+}
 
 #[cfg(test)]
 mod disjoint_tests {
@@ -96,9 +146,41 @@ mod binary_search_tests {
     }
 }
 
+#[cfg(test)]
+mod heapsort_tests {
+    use super::*;
+
+    #[test]
+    fn sort() {
+        // Ascending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        heapsort(&mut v, false);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        heapsort(&mut v, true);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+
+    #[test]
+    fn sort_empty() {
+        // Ascending.
+        let mut v: Vec<i32> = Vec::new();
+        heapsort(&mut v, false);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v: Vec<i32> = Vec::new();
+        heapsort(&mut v, true);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+}
+
 /// Returns false if any element in v1 equals any element in v2. Otherwise,
 /// returns true.
 /// The arguments need not be sets (they can contain duplicated elements).
+/// The items stored in v1 and v2 must implement the clone trait.
 // For practice, this is implemented with sorting and searching instead of a hashset.
 //  The O(nlogn) runtime of sorting will be our bottleneck, so sort the
 //  smaller vector, then scan through the larger vector, running binary search
@@ -175,4 +257,31 @@ fn binary_search_internal<T>(
     else {
         binary_search_internal(v, x, middle + 1, Some(end))
     }
+}
+
+/// Sorts the given vector in ascending or descending order.
+pub fn heapsort<T>(v: &mut Vec<T>, sort_descending: bool)
+    where T: PartialOrd
+{
+    // Use a max-heap for descending sort and a min-heap for ascending.
+    let mut h = Heap::new(sort_descending);
+    
+    // Empty the vector into the heap.
+    for _ in 0..v.len() {
+        h.insert(v.pop().unwrap());
+    }
+    
+    // Empty the heap back into the vector.
+    // Like magic, the elements are now sorted!
+    let mut element = h.extract();
+    while element.is_some() {
+        v.push(element.unwrap());
+        element = h.extract();
+    }
+}
+
+/// Sorts the given vector in ascending or descending order.
+pub fn mergesort(v: &mut Vec<T>, sort_descending: bool)
+    where T: PartialOrd
+{
 }
