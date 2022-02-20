@@ -227,6 +227,7 @@ pub struct VecStack<T> {
 }
 
 impl<T> VecStack<T> {
+    /// Returns a new empty stack.
     pub fn new() -> VecStack<T> {
         VecStack {
             vector: Vec::new()

@@ -142,8 +142,8 @@ pub fn binary_search<T>(v: &Vec<T>, x: &T) -> Option<usize>
 }
 
 // We use an Option<usize> to allow us to index into the largest possible Vec
-// while still being able to indicate that calculating end resulted in a negative
-// number.
+// while still being able to indicate that calculating end would result in a
+// negative number.
 // In an abstract sense, we could run into the same problem with usize::MAX + 1
 // but we probably can't actually have a vector that large (because it would
 // require all of the computer's addressable memory and then some).

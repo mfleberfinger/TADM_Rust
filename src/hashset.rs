@@ -220,7 +220,7 @@ impl<T> Hashset<T>
     }
 
     /// Inserts a new value into the hashset.
-    /// #Panics
+    /// # Panics
     /// This function will panic if an attempt is made to insert a value that
     /// already exists in the hashset.
     pub fn insert(&mut self, value: T) {
@@ -264,6 +264,9 @@ impl<T> Hashset<T>
     }
 
     /// Removes a value from the hashset and returns it.
+    /// # Panics
+    /// This function will panic if an attempt is made to remove an item that
+    /// is not present in the hashset.
     // "Deletion in an open addressing scheme can get ugly, since removing one
     // element might break a chain of insertions, making some elements
     // inaccessible. We have no alternative but to reinsert all the items in

@@ -84,6 +84,8 @@ pub struct Heap<T> {
 impl<T> Heap<T>
     where T: PartialOrd
 {
+    /// Creates a new empty heap. If the is_max_heap argument is true, this will
+    /// be a max-heap. If the argument is false, it will be a min-heap.
     pub fn new(is_max_heap: bool) -> Heap<T> {
         Heap {
             is_max_heap,
