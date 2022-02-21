@@ -155,11 +155,13 @@ mod heapsort_tests {
         // Ascending.
         let mut v = vec![5, 4, 3, 1, 11, 10];
         heapsort(&mut v, false);
+        assert_eq!(v.len(), 6);
         test_helpers::assert_sorted(v.iter(), true);
 
         // Descending.
         let mut v = vec![5, 4, 3, 1, 11, 10];
         heapsort(&mut v, true);
+        assert_eq!(v.len(), 6);
         test_helpers::assert_sorted(v.iter(), false);
     }
 
@@ -168,11 +170,48 @@ mod heapsort_tests {
         // Ascending.
         let mut v: Vec<i32> = Vec::new();
         heapsort(&mut v, false);
+        assert_eq!(v.len(), 0);
         test_helpers::assert_sorted(v.iter(), true);
 
         // Descending.
         let mut v: Vec<i32> = Vec::new();
         heapsort(&mut v, true);
+        assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+}
+
+#[cfg(test)]
+mod mergesort_tests {
+    use super::*;
+
+    #[test]
+    fn sort() {
+        // Ascending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        v = mergesort(v, false);
+        assert_eq!(v.len(), 6);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        v = mergesort(v, true);
+        assert_eq!(v.len(), 6);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+
+    #[test]
+    fn sort_empty() {
+        // Ascending.
+        let mut v: Vec<i32> = Vec::new();
+        v = mergesort(v, false);
+        assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v: Vec<i32> = Vec::new();
+        v = mergesort(v, true);
+        assert_eq!(v.len(), 0);
         test_helpers::assert_sorted(v.iter(), false);
     }
 }
@@ -281,7 +320,64 @@ pub fn heapsort<T>(v: &mut Vec<T>, sort_descending: bool)
 }
 
 /// Sorts the given vector in ascending or descending order.
-pub fn mergesort(v: &mut Vec<T>, sort_descending: bool)
+pub fn mergesort<T>(mut v: Vec<T>, sort_descending: bool) -> Vec<T>
     where T: PartialOrd
 {
+    mergesort_internal(v, sort_descending)
+}
+
+fn mergesort_internal<T>(mut v: Vec<T>,  sort_descending: bool) -> Vec<T>
+    where T: PartialOrd
+{
+    if v.len() > 1 {
+        let mut v1: Vec<T> = v.drain(0..(v.len() / 2)).collect();
+        let mut v2: Vec<T> = v.drain((v.len() / 2 + 1)..v.len()).collect();
+        merge(
+            mergesort_internal(v1, sort_descending),
+            mergesort_internal(v2, sort_descending),
+            sort_descending
+            )
+    }
+    else {
+        v
+    }
+}
+
+fn merge<T>(mut v1: Vec<T>, mut v2: Vec<T>, sort_descending: bool) -> Vec<T>
+    where T: PartialOrd
+{
+    let mut merged = Vec::new();
+
+    // We will need to work backwards through v1 and v2 so we can efficiently
+    // move values out of of them without changing the order.
+    while !v1.is_empty() || !v2.is_empty() {
+        if v1.is_empty() {
+            merged.push(v2.pop().unwrap());
+        }
+        else if v2.is_empty() {
+            merged.push(v1.pop().unwrap());
+        }
+        else if v1[v1.len() - 1] > v2[v2.len() - 1] {
+            if sort_descending {
+                merged.push(v2.pop().unwrap());
+            }
+            else {
+                merged.push(v1.pop().unwrap());
+            }
+        }
+        else {
+            if sort_descending {
+                merged.push(v1.pop().unwrap());
+            }
+            else {
+                merged.push(v2.pop().unwrap());
+            }
+        }
+    }
+
+    // We reversed the order of the vectors while merging, so we need to reverse
+    // it again. It's not clear if there is a way to avoid reversing the vector
+    // in the first place.
+    merged.reverse();
+    merged
 }
