@@ -323,18 +323,12 @@ pub fn heapsort<T>(v: &mut Vec<T>, sort_descending: bool)
 pub fn mergesort<T>(mut v: Vec<T>, sort_descending: bool) -> Vec<T>
     where T: PartialOrd
 {
-    mergesort_internal(v, sort_descending)
-}
-
-fn mergesort_internal<T>(mut v: Vec<T>,  sort_descending: bool) -> Vec<T>
-    where T: PartialOrd
-{
     if v.len() > 1 {
-        let mut v1: Vec<T> = v.drain(0..(v.len() / 2)).collect();
-        let mut v2: Vec<T> = v.drain((v.len() / 2 + 1)..v.len()).collect();
+        let v1: Vec<T> = v.drain(0..(v.len() / 2)).collect();
+        let v2: Vec<T> = v.drain(0..v.len()).collect();
         merge(
-            mergesort_internal(v1, sort_descending),
-            mergesort_internal(v2, sort_descending),
+            mergesort(v1, sort_descending),
+            mergesort(v2, sort_descending),
             sort_descending
             )
     }
@@ -376,8 +370,8 @@ fn merge<T>(mut v1: Vec<T>, mut v2: Vec<T>, sort_descending: bool) -> Vec<T>
     }
 
     // We reversed the order of the vectors while merging, so we need to reverse
-    // it again. It's not clear if there is a way to avoid reversing the vector
-    // in the first place.
+    // it again. It's not clear if there is an efficient way to avoid reversing
+    // the vector in the first place.
     merged.reverse();
     merged
 }
