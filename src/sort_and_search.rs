@@ -179,6 +179,21 @@ mod heapsort_tests {
         assert_eq!(v.len(), 0);
         test_helpers::assert_sorted(v.iter(), false);
     }
+
+    #[test]
+    fn sort_big() {
+        let mut v = Vec::new();
+        let len = 100000;
+
+        // Create a big vector that isn't already sorted.
+        for i in 0..len {
+            v.push(i % 100);
+        }
+        // sort descending.
+        heapsort(&mut v, true);
+        assert_eq!(v.len(), len);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
 }
 
 #[cfg(test)]
@@ -212,6 +227,21 @@ mod mergesort_tests {
         let mut v: Vec<i32> = Vec::new();
         v = mergesort(v, true);
         assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+
+    #[test]
+    fn sort_big() {
+        let mut v = Vec::new();
+        let len = 100000;
+
+        // Create a big vector that isn't already sorted.
+        for i in 0..len {
+            v.push(i % 100);
+        }
+        // sort descending.
+        v = mergesort(v, true);
+        assert_eq!(v.len(), len);
         test_helpers::assert_sorted(v.iter(), false);
     }
 }
