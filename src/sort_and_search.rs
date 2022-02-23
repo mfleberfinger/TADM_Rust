@@ -246,6 +246,56 @@ mod mergesort_tests {
     }
 }
 
+#[cfg(test)]
+mod quicksort_tests {
+    use super::*;
+
+    #[test]
+    fn sort() {
+        // Ascending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        quicksort(&mut v, false);
+        assert_eq!(v.len(), 6);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v = vec![5, 4, 3, 1, 11, 10];
+        quicksort(&mut v, true);
+        assert_eq!(v.len(), 6);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+
+    #[test]
+    fn sort_empty() {
+        // Ascending.
+        let mut v: Vec<i32> = Vec::new();
+        quicksort(&mut v, false);
+        assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), true);
+
+        // Descending.
+        let mut v: Vec<i32> = Vec::new();
+        quicksort(&mut v, true);
+        assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+
+    #[test]
+    fn sort_big() {
+        let mut v = Vec::new();
+        let len = 100000;
+
+        // Create a big vector that isn't already sorted.
+        for i in 0..len {
+            v.push(i % 100);
+        }
+        // sort descending.
+        quicksort(&mut v, true);
+        assert_eq!(v.len(), len);
+        test_helpers::assert_sorted(v.iter(), false);
+    }
+}
+
 /// Returns false if any element in v1 equals any element in v2. Otherwise,
 /// returns true.
 /// The arguments need not be sets (they can contain duplicated elements).
@@ -404,4 +454,33 @@ fn merge<T>(mut v1: Vec<T>, mut v2: Vec<T>, sort_descending: bool) -> Vec<T>
     // the vector in the first place.
     merged.reverse();
     merged
+}
+
+/// Sorts the given vector in ascending or descending order.
+pub fn quicksort<T>(vector: &mut Vec<T>, sort_descending: bool)
+    where T: PartialOrd
+{
+    // TODO: Randomize the order of elements in the vector before calling
+    // quicksort_internal. Otherwise, we'll have n^2 running time on sorted or
+    // nearly sorted data.
+    quicksort_internal(&mut vector[..], sort_descending);
+}
+
+fn quicksort_internal<T>(slice: &mut [T], sort_descending: bool)
+    where T: PartialOrd
+{
+    let mut pivot = slice.len() / 2;
+    // Move everything to the correct side of the pivot.
+    pivot = partition(slice, sort_descending, pivot);
+    // Sort everything to the left of the pivot.
+    quicksort_internal(&mut slice[..pivot], sort_descending);
+    // Sort everything to the right of the pivot.
+    // TODO: Make sure pivot + 1 is a valid index into the slice.
+    quicksort_internal(&mut slice[(pivot + 1)..], sort_descending);
+}
+
+fn partition<T>(slice: &mut [T], sort_descending: bool, pivot: usize) -> usize
+    where T: PartialOrd
+{
+    0
 }
