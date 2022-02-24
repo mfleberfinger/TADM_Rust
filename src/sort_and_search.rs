@@ -460,27 +460,52 @@ fn merge<T>(mut v1: Vec<T>, mut v2: Vec<T>, sort_descending: bool) -> Vec<T>
 pub fn quicksort<T>(vector: &mut Vec<T>, sort_descending: bool)
     where T: PartialOrd
 {
-    // TODO: Randomize the order of elements in the vector before calling
-    // quicksort_internal. Otherwise, we'll have n^2 running time on sorted or
-    // nearly sorted data.
     quicksort_internal(&mut vector[..], sort_descending);
 }
 
 fn quicksort_internal<T>(slice: &mut [T], sort_descending: bool)
     where T: PartialOrd
 {
-    let mut pivot = slice.len() / 2;
-    // Move everything to the correct side of the pivot.
-    pivot = partition(slice, sort_descending, pivot);
-    // Sort everything to the left of the pivot.
-    quicksort_internal(&mut slice[..pivot], sort_descending);
-    // Sort everything to the right of the pivot.
-    // TODO: Make sure pivot + 1 is a valid index into the slice.
-    quicksort_internal(&mut slice[(pivot + 1)..], sort_descending);
+    if slice.len() > 1 {
+        let mut pivot = slice.len() / 2;
+        // Move everything to the correct side of the pivot.
+        partition(slice, sort_descending, &mut pivot);
+        // Sort everything to the left of the pivot.
+        quicksort_internal(&mut slice[..pivot], sort_descending);
+        // Sort everything to the right of the pivot, if the pivot is not the last element.
+        if pivot + 2 < slice.len() {
+            quicksort_internal(&mut slice[(pivot + 1)..], sort_descending);
+        }
+    }
 }
 
-fn partition<T>(slice: &mut [T], sort_descending: bool, pivot: usize) -> usize
+// Move all elements that come after the pivot in sorted order to the right of
+// the pivot and move all elements that come before the pivot to the left of
+// the pivot. The pivot itself will move as needed to accomplish this within the
+// bounds of the slice.
+// Mutate the pivot parameter to keep track of the pivot element's index.
+fn partition<T>(slice: &mut [T], sort_descending: bool, pivot: &mut usize)
     where T: PartialOrd
 {
-    0
+    let mut j = 0;
+
+    for i in 0..slice.len() {
+        if (slice[i] > slice[*pivot] && sort_descending)
+            || (slice[i] < slice[*pivot] && !sort_descending) {
+
+            slice.swap(i, j);
+
+            // If we moved the pivot, change the pivot index to point to it again.
+            if j == *pivot {
+                *pivot = i;
+            }
+
+            j += 1;
+        }
+    }
+    
+    // All elements that should be to the left of the pivot are now to its left.
+    // Swap the pivot with the first element that belongs on its right.
+    slice.swap(j, *pivot);
+    *pivot = j;
 }
