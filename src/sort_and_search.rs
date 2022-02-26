@@ -147,6 +147,56 @@ mod binary_search_tests {
 }
 
 #[cfg(test)]
+mod square_root_tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Cannot calculate the square root of a negative number.")]
+    fn negative() {
+        square_root(-1.0, 0.0);
+    }
+
+    #[test]
+    fn integers_greater_than_one() {
+        for i in 0..100000 {
+            let x = f64::from(i);
+            // We do a direct equality comparison of floats here but a similar
+            // assertion does succeed with the standard square root function:
+            // assert_eq!((x.powf(2.0)).sqrt(), x);
+            assert_eq!(square_root(x.powf(2.0), 0.0), x);
+        }
+    }
+
+    /* Runs for a very long time. May never terminate.
+    #[test]
+    fn greater_than_one_with_decimal_points() {
+        for i in 100..110 {
+            for j in 0..1000 {
+                let x = f64::from(i) + (1.0 / f64::from(j));
+                // We do a direct equality comparison of floats here but a similar
+                // assertion does succeed with the standard square root function:
+                // assert_eq!((x.powf(2.0)).sqrt(), x);
+                assert_eq!(square_root(x.powf(2.0), 0.0), x);
+            }
+        }
+    }
+    */
+
+    /* Runs for a very long time. May never terminate.
+    #[test]
+    fn between_zero_and_one() {
+        //let epsilon = 0.1;
+        for i in 1..1000 {
+            let x = 1.0 / f64::from(i);
+            //assert!((square_root(x.powf(2.0), epsilon) - x).abs() <= epsilon);
+            assert_eq!(square_root(x.powf(2.0), 0.0), x);
+            //assert_eq!((x.powf(2.0)).sqrt(), x);
+        }
+    }
+    */
+}
+
+#[cfg(test)]
 mod heapsort_tests {
     use super::*;
 
@@ -377,6 +427,73 @@ fn binary_search_internal<T>(
         binary_search_internal(v, x, middle + 1, Some(end))
     }
 }
+
+/// Returns the square root of the argument, x.
+/// The x argument must be positive.
+/// # Panics
+/// This function will panic if x is negative.
+/// # Bug
+/// This function will run for a very long time (or maybe forever) for certain
+/// inputs. It doesn't seem to have any problems running for integer inputs.
+/// For example, it returns the correct results for all integers from 1 to 100,000.
+/// This probably has something to do with floating point precision.
+// We will essentially perform a binary search on the numbers between 0 and x
+// for a number m such that m * m = x.
+pub fn square_root(x: f64, epsilon: f64) -> f64 {
+    if x < 0.0 {
+        // We're not very imaginative.
+       panic!("Cannot calculate the square root of a negative number.");
+    }
+
+    if x == 0.0 {
+        // The square root of 0 is 0.
+       return 0.0;
+    }
+
+    let mut l;
+    let mut h;
+    let mut m;
+
+    if x >= 1.0 {
+        // x is at least 1. The square root of x is between 1 and x.
+        l = 1.0;
+        h = x;
+        m = (l + h) / 2.0;
+    }
+    else {
+        // x is between 0 and 1. The square root of x is between x and 1.
+        l = x;
+        h = 1.0;
+        m = (l + h) / 2.0;
+    }
+
+    while (m * m < x - epsilon) || (m * m > x + epsilon) {
+        if m * m < x - epsilon {
+            l = m;
+        }
+        else {
+            h = m;
+        }
+        m = (l + h) / 2.0;
+    }
+    m
+}
+
+/*
+fn square_root_internal(x: f64, l: f64, h: f64) -> f64 {
+    let m = (l + h) / 2.0;
+
+    if m * m < x {
+        square_root_internal(x, m, h)
+    }
+    else if m * m > x {
+        square_root_internal(x, l, m)
+    }
+    else {
+        m
+    }
+}
+*/
 
 /// Sorts the given vector in ascending or descending order.
 pub fn heapsort<T>(v: &mut Vec<T>, sort_descending: bool)
