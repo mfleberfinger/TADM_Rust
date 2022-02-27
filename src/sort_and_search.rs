@@ -1,8 +1,32 @@
 use std::cmp::Ord;
 use crate::heap::Heap;
+use crate::hashset::Hashset;
 
 #[cfg(test)]
 mod test_helpers {
+    // Returns a vector of strings.
+    pub fn get_strings() -> Vec<String> {
+        vec![
+            String::from("spork"),
+            String::from("pork"),
+            String::from("fork"),
+            String::from("spoon"),
+            String::from("knife"),
+            String::from("serial"),
+            String::from("cereal"),
+            String::from("senile"),
+            String::from("serotonin"),
+            String::from("animal"),
+            String::from("a"),
+            String::from("xylophone"),
+            String::from("mississippi"),
+            String::from("zebra"),
+            String::from("giraffe"),
+            String::from(""),                           // Empty string
+            String::from("abcdefghijklmnopqrstuvwxyz")  // Now I know my ABCs.
+        ]
+    }
+
     // Asserts that the given iterator is sorted in ascending order if the
     // ascending argument is true. Otherwise, asserts that the iterator is in
     // descending order.
@@ -346,6 +370,48 @@ mod quicksort_tests {
     }
 }
 
+#[cfg(test)]
+mod distribution_sort_tests {
+    use super::*;
+
+    #[test]
+    fn sort() {
+        let mut v = test_helpers::get_strings();
+        let len = v.len();
+        v = distribution_sort(v);
+        assert_eq!(v.len(), len);
+        test_helpers::assert_sorted(v.iter(), true);
+    }
+
+    #[test]
+    fn sort_empty() {
+        let mut v: Vec<String> = Vec::new();
+        v = distribution_sort(v);
+        assert_eq!(v.len(), 0);
+        test_helpers::assert_sorted(v.iter(), true);
+    }
+
+    #[test]
+    #[should_panic(expected = "This function does not support duplicated strings.")]
+    fn duplicates() {
+        let v = vec![
+            String::from("string"),
+            String::from("and"),
+            String::from("string"),
+            String::from("another string")];
+        distribution_sort(v);
+    }
+
+    #[test]
+    #[should_panic(expected = "Input strings may only contain lowercase characters a through z.")]
+    fn unsupported_characters() {
+        let v = vec![
+            String::from("string"),
+            String::from("string?")];
+        distribution_sort(v);
+    }
+}
+
 /// Returns false if any element in v1 equals any element in v2. Otherwise,
 /// returns true.
 /// The arguments need not be sets (they can contain duplicated elements).
@@ -517,6 +583,7 @@ pub fn heapsort<T>(v: &mut Vec<T>, sort_descending: bool)
 }
 
 /// Sorts the given vector in ascending or descending order.
+/// This function consumes the given vector and returns a new vector.
 pub fn mergesort<T>(mut v: Vec<T>, sort_descending: bool) -> Vec<T>
     where T: PartialOrd
 {
@@ -625,4 +692,86 @@ fn partition<T>(slice: &mut [T], sort_descending: bool, pivot: &mut usize)
     // Swap the pivot with the first element that belongs on its right.
     slice.swap(j, *pivot);
     *pivot = j;
+}
+
+
+/// Given a vector of strings, sort that vector in ascending order by bucketing.
+/// This function consumes the given vector and returns a new vector.
+/// # Panics
+/// This function will panic if there are duplicate strings in the vector. For
+/// example, ["this", "is", "a", "vector"] will be sorted but
+/// ["this", "this", "is", "a", "vector"] will cause a panic.
+/// 
+/// This function will panic if any string in the vector contains anything other
+/// than lowercase alphabetical characters (a-z).
+pub fn distribution_sort(vector: Vec<String>) -> Vec<String> {
+    let mut set = Hashset::new();
+    for s in &vector {
+        // Panic if unsupported characters found in vector. 
+        for c in s.chars() {
+            if c < 'a' || c > 'z' {
+                panic!("Input strings may only contain lowercase characters a through z.");
+            }
+        }
+        
+        // Panic if duplicates found in vector.
+        if set.contains(&s) {
+            panic!("This function does not support duplicated strings.");
+        }
+        else {
+            set.insert(s);
+        }
+    }
+
+    distribution_sort_internal(vector, 0)
+}
+
+fn distribution_sort_internal(mut vector: Vec<String>, i: usize) -> Vec<String> {
+
+    // Create the buckets.
+    let mut buckets: Vec<Vec<String>> = Vec::new();
+
+    // Create a bucket for each letter and one more for blank/none.
+    let number_of_buckets = 27;
+    for _ in 0..number_of_buckets {
+        buckets.push(Vec::new());
+    }
+
+    // Bucket by the ith letter.
+    for s in vector.drain(..) {
+        // Convert the ith character of this string to an integer between 0 and 25.
+        let index = match s.chars().nth(i) {
+            // We know we can unwrap because the calling function should only
+            // allow the letters a to z to be passed to this function.
+            Some(c) => c.to_digit(36).unwrap() - 9,
+            // If this string is shorter than i letters, it comes before any
+            // string with i or more letters in the same bucket.
+            None => 0
+        } as usize;
+        // Put the string in the proper bucket.
+        buckets[index].push(s);
+    }
+
+    // Sort each bucket.
+    for j in 0..buckets.len() {
+        if buckets[j].len() > 1 {
+            // Need to give distribution_sort_internal ownership of the bucket,
+            // then put the bucket back where it was when we get ownership back.
+            // Maybe distribution_sort_internal could be rewritten to use a borrow
+            // but if mergesort is any indication, that is not straightforward.
+            let bucket = distribution_sort_internal(buckets.swap_remove(j), i + 1);
+            buckets.push(bucket);
+            buckets.swap(j, number_of_buckets - 1);
+        }
+    }
+
+    // Combine the sorted buckets.
+    let mut sorted = Vec::new();
+    for b in buckets {
+        for s in b {
+            sorted.push(s);
+        }
+    }
+
+    sorted
 }
