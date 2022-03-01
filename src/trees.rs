@@ -89,12 +89,27 @@ struct Node<T, U> {
     right: Option<usize>
 }
 
-/// A binary search tree.
+/// An unbalanced binary search tree.
 pub struct BinarySearchTree<T, U>
     where T: PartialOrd + Eq
 {
     nodes: Arena<Node<T, U>>,
     root: Option<usize>
+}
+
+impl<T, U> Node<T,U>
+    where T: PartialOrd + Eq
+{
+    fn new(key: T, data: U)
+        -> Node<T, U>
+    {
+        Node {
+            key,
+            data,
+            left: None,
+            right: None
+        }
+    }
 }
 
 impl<T, U> BinarySearchTree<T, U>
@@ -112,6 +127,46 @@ impl<T, U> BinarySearchTree<T, U>
     /// # Panics
     /// Panics if the key (item) is already present in the tree.
     pub fn insert(&mut self, key: T, data: U) {
+        let new_node = Node::new(key, data);
+        
+        match self.root {
+            Some(root) => self.insert_internal(root, new_node),
+            None => self.root = Some(self.nodes.insert(new_node))
+        }
+    }
+
+    // Recursively search for the proper location for the new node and insert it.
+    // The caller must ensure that the "current" parameter indexes to an existing Node.
+    fn insert_internal(&mut self, current: usize, new_node: Node<T, U>) {
+        let next_node;
+        let current_node = match self.nodes[current] {
+            Some(node) => {
+                node
+            },
+            None => {
+                panic!("An invalid node index was passed to insert_internal.\
+                    This is probably a bug in BinarySearchTree's implementation.");
+            }
+        };
+
+        if current_node.key < new_node.key {
+            next_node = &mut (current_node.left);
+        }
+        else if current_node.key > new_node.key {
+            next_node = &mut (current_node.right);
+        }
+        else {
+            panic!("Insertion of duplicate keys is not supported.");
+        }
+
+        match *next_node {
+            Some(next) => {
+                self.insert_internal(next, new_node);
+            },
+            None => {
+               *next_node = Some(self.nodes.insert(new_node));
+            }
+        }
     }
 
     /// Find a key, if it exists, and return a reference to the data stored
@@ -132,18 +187,18 @@ impl<T, U> BinarySearchTree<T, U>
         panic!("no tengo");
     }
 
-    pub fn iter_in_order(&self) -> in_order_iterator<T, U> {
+    pub fn iter_in_order(&self) -> InOrderIterator<T, U> {
         panic!("Iterate 'er? I 'ardly know 'er!");
     }
 }
 
-pub struct in_order_iterator<T, U>
+pub struct InOrderIterator<T, U>
     where T: PartialOrd + Eq
 {
     current: Option<Node<T, U>>
 }
 
-impl<T, U> Iterator for in_order_iterator<T, U>
+impl<T, U> Iterator for InOrderIterator<T, U>
     where T: PartialOrd + Eq
 {
     type Item = U;
