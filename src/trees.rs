@@ -138,33 +138,51 @@ impl<T, U> BinarySearchTree<T, U>
     // Recursively search for the proper location for the new node and insert it.
     // The caller must ensure that the "current" parameter indexes to an existing Node.
     fn insert_internal(&mut self, current: usize, new_node: Node<T, U>) {
-        let next_node;
-        let current_node = match self.nodes[current] {
+        let next_is_left;
+        let current_node = match &self.nodes[current] {
             Some(node) => {
                 node
             },
             None => {
-                panic!("An invalid node index was passed to insert_internal.\
+                panic!("An invalid node index was passed to insert_internal().\
                     This is probably a bug in BinarySearchTree's implementation.");
             }
         };
 
-        if current_node.key < new_node.key {
-            next_node = &mut (current_node.left);
+        if  new_node.key < current_node.key {
+            next_is_left = true;
         }
-        else if current_node.key > new_node.key {
-            next_node = &mut (current_node.right);
+        else if new_node.key > current_node.key {
+            next_is_left = false;
         }
         else {
             panic!("Insertion of duplicate keys is not supported.");
         }
 
-        match *next_node {
-            Some(next) => {
-                self.insert_internal(next, new_node);
-            },
-            None => {
-               *next_node = Some(self.nodes.insert(new_node));
+        if next_is_left {
+            match current_node.left {
+                Some(next_index) => {
+                    self.insert_internal(next_index, new_node);
+                },
+                None => {
+                    let left = Some(self.nodes.insert(new_node));
+                    // We know we can unwrap because we're inside a "match current_node..." block.
+                    let current_node = self.nodes.borrow_mutable(current).unwrap();
+                    current_node.left = left;
+                }
+            }
+        }
+        else {
+            match current_node.right {
+                Some(next_index) => {
+                    self.insert_internal(next_index, new_node);
+                },
+                None => {
+                    let right = Some(self.nodes.insert(new_node));
+                    // We know we can unwrap because we're inside a "match current_node..." block.
+                    let current_node = self.nodes.borrow_mutable(current).unwrap();
+                    current_node.right = right;
+                }
             }
         }
     }
@@ -172,13 +190,50 @@ impl<T, U> BinarySearchTree<T, U>
     /// Find a key, if it exists, and return a reference to the data stored
     /// there, otherwise return None.
     pub fn search(&self, key: &T) -> Option<&U> {
-        panic!("notimplemented");
+        match self.root {
+            Some(root) => match self.search_internal(root, key) {
+                // We can unwrap here because search_internal is expected to
+                // either return a valid index or None.
+                Some(i) => Some(&(self.nodes[i].as_ref().unwrap().data)),
+                None => None
+            }
+            None => None
+        }
     }
 
-    // Find the node with the given key and return a mutable reference to it. If
-    // no such node exists, return None.
-    fn search_internal(&self, key: &T) -> Option<&mut Node<T, U>> {
-        panic!("oops");
+    // Find the node with the given key and return its index. If no such node
+    // exists, return None.
+    fn search_internal(&self, current: usize, key: &T)
+        -> Option<usize>
+    {
+        let current_node = match &self.nodes[current] {
+            Some(node) => node,
+            None => {
+                panic!("An invalid node index was passed to search_internal().\
+                This is probably a bug in BinarySearchTree's implementation.");
+            }
+        };
+
+        if *key < current_node.key {
+            match current_node.left {
+                // Search the left subtree.
+                Some(left_index) => self.search_internal(left_index, key),
+                // The given key does not exist in the tree.
+                None => None
+            }
+        }
+        else if *key > current_node.key {
+            match current_node.right {
+                // Search the right subtree.
+                Some(right_index) => self.search_internal(right_index, key),
+                // The given key does not exist in the tree.
+                None => None
+            }
+        }
+        else {
+            // We've found the key.
+            Some(current)
+        }
     }
 
     /// Delete the given key from the tree and return ownership of its data.

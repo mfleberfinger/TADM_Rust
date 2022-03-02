@@ -14,7 +14,7 @@ mod arena_tests {
     #[test]
     #[should_panic(expected = "index out of bounds")]
     fn index_when_empty() {
-        let mut arena: Arena<i32> = Arena::new();
+        let arena: Arena<i32> = Arena::new();
         arena[0];
     }
 
@@ -51,6 +51,22 @@ mod arena_tests {
             assert_eq!(arena[i], Some(j));
             j += 1;
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "Index out of bounds. Cannot borrow.")]
+    fn borrow_mutable_out_of_bounds() {
+        let mut arena: Arena<i32> = Arena::new();
+        arena.borrow_mutable(0);
+    }
+
+    #[test]
+    fn mutate_stored_data() {
+        let mut arena = Arena::new();
+        let index = arena.insert(String::from("Some data"));
+        let mutable = arena.borrow_mutable(0);
+        *(mutable.unwrap()) = String::from("Some other data");
+        assert_eq!(arena[index].as_ref().unwrap(), "Some other data");
     }
 }
 
@@ -104,6 +120,18 @@ impl<T> Arena<T> {
             None
         }
 
+    }
+
+    /// Returns a mutable reference to the value at the given index.
+    /// Returns None if the index was allocated but does not currently hold
+    /// anything.
+    /// # Panics
+    /// Panics if the index is out of bounds.
+    pub fn borrow_mutable(&mut self, index: usize) -> Option<&mut T> {
+        match self.storage.get_mut(index) {
+            Some(reference) => reference.as_mut(),
+            None => { panic!("Index out of bounds. Cannot borrow.") }
+        }
     }
 }
 
