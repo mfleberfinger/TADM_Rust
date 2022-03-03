@@ -3,9 +3,18 @@ use crate::arena::Arena;
 #[cfg(test)]
 mod binary_search_tree_tests {
     use super::*;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    // Calculate and return a hash of the given value.
+    fn calculate_hash<T: Hash>(input: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        input.hash(&mut hasher);
+        hasher.finish()
+    }
 
     // Insert some elements into a tree and retrieve them.
-    #[test]
+    #[test] 
     fn insert_and_search() {
         let mut tree = BinarySearchTree::new();
 
@@ -18,6 +27,34 @@ mod binary_search_tree_tests {
         // Search for everything again now that we have all of the elements in the tree.
         for i in 0..100 {
             assert_eq!(*(tree.search(&i).unwrap()), i * 2);
+        }
+
+        // Repeat the test but insert keys in descending order.
+        let mut tree = BinarySearchTree::new();
+        for i in (0..100).rev() {
+            tree.insert(i, 2 * i);
+            // Find each new element as we insert it.
+            assert_eq!(*(tree.search(&i).unwrap()), i * 2);
+        }
+        
+        // Search for everything again now that we have all of the elements in the tree.
+        for i in 0..100 {
+            assert_eq!(*(tree.search(&i).unwrap()), i * 2);
+        }
+
+        // Repeat the test but insert keys in an arbitrary order.
+        let mut tree = BinarySearchTree::new();
+        for i in 0..100 {
+            // Inserting hashes will give us random-looking, but deterministic, data.
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            tree.insert(key, data);
+            assert_eq!(*(tree.search(&key).unwrap()), data);
+        }
+        for i in 0..100 {
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            assert_eq!(*(tree.search(&key).unwrap()), data);
         }
     }
 
@@ -34,18 +71,42 @@ mod binary_search_tree_tests {
     }
 
     // Insert some elements and remove them.
-    // Verify that ownership of the data is returned.
+    // Verify that the correct data is returned.
     // Verify that they have been deleted by searching for them.
     #[test]
     fn insert_and_remove() {
         let mut tree = BinarySearchTree::new();
-
         for i in 0..100 {
             tree.insert(i, 2 * i);
         }
         for i in 0..100 {
             assert_eq!(tree.remove(&i).unwrap(), i * 2);
             assert!(tree.search(&i).is_none());
+        }
+
+        // Repeat the test but insert keys in descending order.
+        let mut tree = BinarySearchTree::new();
+        for i in (0..100).rev() {
+            tree.insert(i, 2 * i);
+        }
+        for i in 0..100 {
+            assert_eq!(tree.remove(&i).unwrap(), i * 2);
+            assert!(tree.search(&i).is_none());
+        }
+
+        // Repeat the test but insert keys in an arbitrary order.
+        let mut tree = BinarySearchTree::new();
+        for i in 0..100 {
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            tree.insert(key, data);
+
+        }
+        for i in 0..100 {
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            assert_eq!(tree.remove(&key).unwrap(), data);
+            assert!(tree.search(&key).is_none());
         }
     }
 
@@ -243,22 +304,29 @@ impl<T, U> BinarySearchTree<T, U>
     }
 
     pub fn iter_in_order(&self) -> InOrderIterator<T, U> {
-        panic!("Iterate 'er? I 'ardly know 'er!");
+        InOrderIterator {
+            tree: self,
+            current: match self.root {
+                Some(root) => Some(root),
+                None => None
+            }
+        }
     }
 }
 
-pub struct InOrderIterator<T, U>
+pub struct InOrderIterator<'a, T, U>
     where T: PartialOrd + Eq
 {
-    current: Option<Node<T, U>>
+    tree: &'a BinarySearchTree<T, U>,
+    current: Option<usize>
 }
 
-impl<T, U> Iterator for InOrderIterator<T, U>
+impl<'a, T, U> Iterator for InOrderIterator<'a, T, U>
     where T: PartialOrd + Eq
 {
     type Item = U;
 
     fn next(&mut self) -> Option<Self::Item> {
-        panic!("Iterate 'er? I 'ardly know 'er!");
+        panic!("not implemented");
     }
 }
