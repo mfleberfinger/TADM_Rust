@@ -119,10 +119,66 @@ mod binary_search_tree_tests {
         tree.insert(1, 2);
     }
 
+    // Create a tree, insert some elements, and call a function to get elements
+    // in order. Verify that the retured vector is in ascending order.
+    #[test]
+    fn in_order_traversal_no_iterator() {
+        let mut tree = BinarySearchTree::new();
+
+        for i in 0..100 {
+            tree.insert(i, 2 * i);
+        }
+        let vector = tree.as_vector();
+        let mut j = 0;
+        // Make sure the inserted items are all there in the correct order.
+        for data in vector {
+            assert_eq!(*data, 2 * j);
+            j += 1;
+        }
+        // Make sure we got through all 100 inserted elements.
+        assert_eq!(j, 100);
+
+        // Repeat the test but insert keys in descending order.
+        let mut tree = BinarySearchTree::new();
+        for i in (0..100).rev() {
+            tree.insert(i, 2 * i);
+        }
+        let vector = tree.as_vector();
+        let mut j = 0;
+        // Make sure the inserted items are all there in the correct order.
+        for data in vector {
+            assert_eq!(*data, 2 * j);
+            j += 1;
+        }
+        // Make sure we got through all 100 inserted elements.
+        assert_eq!(j, 100);
+
+        // Repeat the test but insert keys in an arbitrary order.
+        let mut tree = BinarySearchTree::new();
+        let mut expected = Vec::new();
+        for i in 0..100 {
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            tree.insert(key, data);
+            expected.push((key, data));
+        }
+        // Sort the (key, data) array by key.
+        expected.sort_by(|a, b| (a.0).cmp(&b.0));
+        let vector = tree.as_vector();
+        let mut j = 0;
+        // Make sure the inserted items are all there in the correct order.
+        for data in vector {
+            assert_eq!(*data, expected[j].1);
+            j += 1;
+        }
+        // Make sure we got through all 100 inserted elements.
+        assert_eq!(j, 100);
+    }
+
     // Create a tree, insert some elements, get an in-order iterator, and use it
     // to traverse the tree. Verify that iteration occurs in ascending order.
     #[test]
-    fn in_order_traversal() {
+    fn in_order_traversal_with_iterator() {
         let mut tree = BinarySearchTree::new();
 
         for i in 0..100 {
@@ -131,7 +187,7 @@ mod binary_search_tree_tests {
 
         let mut iter = tree.iter_in_order();
         let mut j = 0;
-        // Make sure the inerted items are all there in the correct order.
+        // Make sure the inserted items are all there in the correct order.
         for i in iter {
             assert_eq!(i, j);
             j += 1;
@@ -311,6 +367,60 @@ impl<T, U> BinarySearchTree<T, U>
                 None => None
             }
         }
+    }
+
+    /// Get a Vec of references to the data stored in the tree, in ascending
+    /// order.
+    // We will accomplish this with an in-order traversal.
+    // inorder traversal: left, current, right
+    pub fn as_vector(&self) -> Vec<&U> {
+        let mut vector = Vec::new();
+        let mut current = None;
+        let mut stack = Vec::new();
+
+        current = match self.root {
+            Some(root) => Some(root),
+            None => None
+        };
+
+        while current.is_some() || !stack.is_empty() {
+            // Keep moving left and pushing the leftmost node to the stack.
+            while let Some(cur) = current {
+                stack.push(cur);
+                current = match &self.nodes[cur] {
+                    Some(node) => match node.left {
+                        Some(left) => Some(left),
+                        None => None
+                    },
+                    None => {
+                        panic!("Attempted to use invalid index in as_vector().\
+                            This is probably a bug in BinarySearchTree.");
+                    }
+                };
+            }
+
+            while current.is_none() && !stack.is_empty() {
+                // Process the leftmost node (i.e. add it to the result vector).
+                // We can unwrap because we know the stack is not empty.
+                let cur = stack.pop().unwrap();
+                // We can unwrap here. if cur was invalid, we would've panicked
+                // in the previous loop.
+                vector.push(&(self.nodes[cur].as_ref().unwrap().data));
+                // Go right.
+                current = match &self.nodes[cur] {
+                    Some(node) => match node.right {
+                        Some(right) => Some(right),
+                        None => None
+                    },
+                    None => {
+                        panic!("Attempted to use invalid index in as_vector().\
+                            This is probably a bug in BinarySearchTree.");
+                    }
+                };
+            }
+        }
+
+        vector
     }
 }
 
