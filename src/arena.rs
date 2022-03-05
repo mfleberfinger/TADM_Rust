@@ -96,7 +96,7 @@ impl<T> Arena<T> {
         let index;
         // If we already have an empty slot, use it. Otherwise, add a new one.
         if let Some(i) = self.available.pop() {
-            self.storage[i].insert(data);
+            let _ = self.storage[i].insert(data);
             index = i;
         }
         else {

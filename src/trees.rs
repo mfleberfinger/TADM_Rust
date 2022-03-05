@@ -185,11 +185,47 @@ mod binary_search_tree_tests {
             tree.insert(i, i);
         }
 
-        let mut iter = tree.iter_in_order();
+        let iter = tree.iter_in_order();
         let mut j = 0;
         // Make sure the inserted items are all there in the correct order.
         for i in iter {
-            assert_eq!(i, j);
+            assert_eq!(*i, j);
+            j += 1;
+        }
+        // Make sure we got through all 100 inserted elements.
+        assert_eq!(j, 100);
+
+        // Repeat the test but insert in descending order.
+        let mut tree = BinarySearchTree::new();
+        for i in 0..100 {
+            tree.insert(i, i);
+        }
+        let iter = tree.iter_in_order();
+        let mut j = 0;
+        // Make sure the inserted items are all there in the correct order.
+        for i in iter {
+            assert_eq!(*i, j);
+            j += 1;
+        }
+        // Make sure we got through all 100 inserted elements.
+        assert_eq!(j, 100);
+
+        // Repeat the test but insert keys in an arbitrary order.
+        let mut tree = BinarySearchTree::new();
+        let mut expected = Vec::new();
+        for i in 0..100 {
+            let key = calculate_hash(&i);
+            let data = calculate_hash(&(i * 2));
+            tree.insert(key, data);
+            expected.push((key, data));
+        }
+        // Sort the (key, data) array by key.
+        expected.sort_by(|a, b| (a.0).cmp(&b.0));
+        let iter = tree.iter_in_order();
+        let mut j = 0;
+        // Make sure the inserted items are all there in the correct order.
+        for data in iter {
+            assert_eq!(*data, expected[j].1);
             j += 1;
         }
         // Make sure we got through all 100 inserted elements.
@@ -359,13 +395,17 @@ impl<T, U> BinarySearchTree<T, U>
         panic!("no tengo");
     }
 
+    /// Get an iterator to perform an in-order traversal on the tree, returning
+    /// a reference to the data stored in the next node with each iteration.
     pub fn iter_in_order(&self) -> InOrderIterator<T, U> {
         InOrderIterator {
             tree: self,
+            stack: Vec::new(),
             current: match self.root {
                 Some(root) => Some(root),
                 None => None
-            }
+            },
+            go_left: true
         }
     }
 
@@ -375,7 +415,7 @@ impl<T, U> BinarySearchTree<T, U>
     // inorder traversal: left, current, right
     pub fn as_vector(&self) -> Vec<&U> {
         let mut vector = Vec::new();
-        let mut current = None;
+        let mut current;
         let mut stack = Vec::new();
 
         current = match self.root {
@@ -403,7 +443,7 @@ impl<T, U> BinarySearchTree<T, U>
                 // Process the leftmost node (i.e. add it to the result vector).
                 // We can unwrap because we know the stack is not empty.
                 let cur = stack.pop().unwrap();
-                // We can unwrap here. if cur was invalid, we would've panicked
+                // We can unwrap here. If cur was invalid, we would've panicked
                 // in the previous loop.
                 vector.push(&(self.nodes[cur].as_ref().unwrap().data));
                 // Go right.
@@ -428,15 +468,72 @@ pub struct InOrderIterator<'a, T, U>
     where T: PartialOrd + Eq
 {
     tree: &'a BinarySearchTree<T, U>,
-    current: Option<usize>
+    stack: Vec<usize>,
+    current: Option<usize>,
+    go_left: bool
 }
 
 impl<'a, T, U> Iterator for InOrderIterator<'a, T, U>
     where T: PartialOrd + Eq
 {
-    type Item = U;
+    type Item = &'a U;
 
+    // We want to do an in-order traversal, returning a single element with
+    // each call to next().
+    // Based on the traversal performed in BinarySearchTree.as_vector(), we
+    // have two stages:
+    //  1. Move all the way to the leftmost node of the current subtree.
+    //  2. Process the current node (return its data) and move right if possible.
+    // After each stage, change the state of a bool to keep track of which
+    // stage we're in. Each call to next() must cause the second stage to
+    // execute exactly once if there are still nodes to traverse.
     fn next(&mut self) -> Option<Self::Item> {
-        panic!("not implemented");
+
+        let mut to_return = None;
+
+        if self.current.is_some() || !self.stack.is_empty() {
+            if self.go_left {
+                // Keep moving left and pushing the leftmost node to the stack.
+                while let Some(cur) = self.current {
+                    self.stack.push(cur);
+                    self.current = match &self.tree.nodes[cur] {
+                        Some(node) => match node.left {
+                            Some(left) => Some(left),
+                            None => None
+                        },
+                        None => {
+                            panic!("Attempted to use invalid index in as_vector().\
+                                This is probably a bug in BinarySearchTree.");
+                        }
+                    };
+                }
+                self.go_left = false;
+            }
+
+            if self.current.is_none() && !self.stack.is_empty() {
+                // Process the leftmost node (i.e. add it to the result vector).
+                // We can unwrap because we know the stack is not empty.
+                let cur = self.stack.pop().unwrap();
+                // We can unwrap here. If cur was invalid, we would've panicked
+                // in the while loop.
+                to_return = Some(&(self.tree.nodes[cur].as_ref().unwrap().data));
+                // Go right.
+                self.current = match &self.tree.nodes[cur] {
+                    Some(node) => match node.right {
+                        Some(right) => {
+                            self.go_left = true;
+                            Some(right)
+                        },
+                        None => None
+                    },
+                    None => {
+                        panic!("Attempted to use invalid index in as_vector().\
+                            This is probably a bug in BinarySearchTree.");
+                    }
+                };
+            }
+        }
+        
+        to_return
     }
 }
