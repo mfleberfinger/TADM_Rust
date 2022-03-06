@@ -407,14 +407,14 @@ impl<T, U> BinarySearchTree<T, U>
         };
 
         // If there's no node with the given key, there's nothing to delete.
-        let parent_current = self.find_parent_and_child(i_root, None, key);
+        let parent_current = self.find_with_parent(i_root, None, key);
         let i_delete = match parent_current.1 {
             Some(i) => i,
             None => return None
         };
 
-        // Remove the node from the arena in preparation for deletion.
-        let doomed_node = match self.nodes.remove(i_delete) {
+        let doomed_node = match self.nodes.borrow_mutable(i_delete)
+        {
             Some(node) => node,
             None => {
                 panic!("Invalid index used in remove(). This is probably a bug\
@@ -422,61 +422,81 @@ impl<T, U> BinarySearchTree<T, U>
             }
         };
 
-        // 1. Deleting a leaf node: Just delete it.
-        // Nothing to do in this case because we've already removed the node
-        // from the arena.
+        let return_data = doomed_node.data;
+
 
         if doomed_node.left.is_some() && doomed_node.right.is_some() {
-            //  3. Deleting a node with two children: Replace the deleted node with its
-            //      immediate successor (the leftmost node of its right subtree). In this
-            //      case the immediate successor must be deleted from its original location,
-            //      which will be one of the two simpler cases.
+            //  3. Deleting a node with two children: Replace the deleted node
+            //      with its successor. In this case the successor must be
+            //      deleted from its original location, which will be one of the
+            //      two simpler cases.
+            let i_successor = self.successor(i_delete);
+            // TODO: remove() probably needs to be rethought.
+            // Possibly go back to removing the doomed node from self.nodes at
+            // the beginning of this function (instead of borrowing) and turn
+            // the single child cases into a function. Then use that function
+            // here to remove the successor, rather than attempting to call
+            // remove() recursively.
+            let successor_node =
+                self.remove(&self.nodes[i_successor].
+                    expect("invalid index in BinarySearchTree.remove()").key).
+                expect("invalid index in BinarySearchTree.remove()");
+            doomed_node.key = successor_node.key;
+            doomed_node.data = successor_node.data;
         }
         else if doomed_node.left.is_some() {
-            //  2. Deleting a node with one child: Make the parent of the
+            //  2. Deleting a node with one (left) child: Make the parent of the
             //  deleted node point to the child node.
             match parent_current.0 {
-                Some(i_parent) => {
-                    let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+                Some(i_parent) => { let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+                    // If the doomed node is its parent's left child.
                     if parent_node.left.is_some() &&
                         parent_node.left.unwrap() == i_delete {
-                            parent_node.left = Some(self.nodes[i_delete].left.unwrap();)
+                            parent_node.left = Some(self.nodes[i_delete].left.unwrap());
                         }
-                    else { // parent has a right child
+                    else { // If the doomed node is its parent's right child.
                         parent_node.right = Some(self.nodes[i_delete].left.unwrap());
                     }
 
                 },
                 None => {
                     // We are deleting the root. Make the child the new root.
-                    self.root = doomed_node.left.unwrap();
+                    self.root = doomed_node.left;
                 }
             }
+            // Do the actual deletion from the arena.
+            self.nodes.remove(i_delete);
         }
         else if doomed_node.right.is_some() {
-            //  2. Deleting a node with one child: Make the parent of the
+            //  2. Deleting a node with one (right) child: Make the parent of the
             //  deleted node point to the child node.
             match parent_current.0 {
                 Some(i_parent) => {
                     let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+                    // If the doomed node is its parent's left child.
                     if parent_node.left.is_some() &&
                         parent_node.left.unwrap() == i_delete {
                             parent_node.left = Some(self.nodes[i_delete].right.unwrap());
                         }
-                    else { // parent has a right child
-                        parent_node.key = Some(self.nodes[i_delete].right.unwrap());
+                    else { // If the doomed node is its parent's right child.
+                        parent_node.right = Some(self.nodes[i_delete].right.unwrap());
                     }
-
                 },
                 None => {
                     // We are deleting the root. Make the child the new root.
                     self.root = doomed_node.right.unwrap();
                 }
             }
+            // Do the actual deletion from the arena.
+            self.nodes.remove(i_delete);
+        }
+        // 1. Deleting a leaf node: Just delete it.
+        else {
+            self.nodes.remove(i_delete);
         }
 
         // Return the contents of the deleted node.
-        Some(doomed_node.data)
+        Some(return_data)
     }
 
     // Find the node with the given key and return its index and the index of its
@@ -484,13 +504,13 @@ impl<T, U> BinarySearchTree<T, U>
     // be None and if the node doesn't exist, both will be None.
     // Initially, current should be the index of the root and previous should be
     // None. If the tree is empty (has no root), this function sould not be called.
-    fn find_parent_and_child(&self, current: usize, previous: Option<usize>, key: &T)
+    fn find_with_parent(&self, current: usize, previous: Option<usize>, key: &T)
         -> (Option<usize>, Option<usize>)
     {
         let current_node = match &self.nodes[current] {
             Some(node) => node,
             None => {
-                panic!("An invalid node index was passed to find_parent_and_child().\
+                panic!("An invalid node index was passed to find_with_parent().\
                 This is probably a bug in BinarySearchTree's implementation.");
             }
         };
@@ -516,10 +536,35 @@ impl<T, U> BinarySearchTree<T, U>
         else {
             // We've found the key.
             match previous {
-                Some(parent) => (Some(parent), Some(current))
+                Some(parent) => (Some(parent), Some(current)),
                 None => (None, Some(current))
             }
         }
+    }
+
+    // Return the index of the successor of the node at the given index.
+    // Assumes the index argument is a valid index.
+    // If the node at index has no successor, it will be returned as its own
+    // successor.
+    fn successor(&self, index: usize) -> usize {
+        let mut current;
+        
+        // Get the index of the right subtree if it exists. Otherwise, return
+        // the given index as its own successor.
+        match self.nodes[index].
+            expect("invalid index in BinaryTree.Successor()").right {
+
+            Some(right) => current = right,
+            None => return index
+        }
+        
+        while let left = self.nodes[current].
+            expect("invalid index in BinaryTree.Successor()").left {
+
+            current = left;
+        }
+
+        current
     }
 
     /// Get an iterator to perform an in-order traversal on the tree, returning
