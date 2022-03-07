@@ -413,7 +413,7 @@ impl<T, U> BinarySearchTree<T, U>
             None => return None
         };
 
-        let doomed_node = match self.nodes.borrow_mutable(i_delete)
+        let doomed_node = match self.nodes.remove(i_delete)
         {
             Some(node) => node,
             None => {
@@ -422,38 +422,62 @@ impl<T, U> BinarySearchTree<T, U>
             }
         };
 
-        let return_data = doomed_node.data;
+        // 1. Deleting a leaf node: Just delete it.
+        if let i_parent = parent_current.0 {
+            // TODO: Need to delete the parent's reference to the doomed node
+            // in all three cases (if the doomed node is not the root). Find
+            // out which child the doomed node is from the start and remove
+            // the parent pointer in just one place (at the end).
+        }
 
 
         if doomed_node.left.is_some() && doomed_node.right.is_some() {
-            //  3. Deleting a node with two children: Replace the deleted node
+            // 3. Deleting a node with two children: Replace the deleted node
             //      with its successor. In this case the successor must be
             //      deleted from its original location, which will be one of the
             //      two simpler cases.
+            // We can ignore the possibility that the node has no true successor
+            // because we know the node has a right child, meaning it must have
+            // a successor.
             let i_successor = self.successor(i_delete);
+            // Remove the pointers to the successor.
+            // Case 1: Successor is a leaf. Remove its parent pointer.
+            
+            // Splice the successor back in where the doomed node was.
+
+
             // TODO: remove() probably needs to be rethought.
             // Possibly go back to removing the doomed node from self.nodes at
             // the beginning of this function (instead of borrowing) and turn
             // the single child cases into a function. Then use that function
             // here to remove the successor, rather than attempting to call
             // remove() recursively.
-            let successor_node =
-                self.remove(&self.nodes[i_successor].
-                    expect("invalid index in BinarySearchTree.remove()").key).
-                expect("invalid index in BinarySearchTree.remove()");
-            doomed_node.key = successor_node.key;
-            doomed_node.data = successor_node.data;
         }
-        else if doomed_node.left.is_some() {
-            //  2. Deleting a node with one (left) child: Make the parent of the
-            //  deleted node point to the child node.
-            match parent_current.0 {
-                Some(i_parent) => { let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+        else if doomed_node.left.is_some() || doomed_node.right.is_some() {
+            remove_single_child_case(i_delete, &doomed_node, parent_current.0);
+        }
+
+        // Return the contents of the deleted node.
+        Some(doomed_node.data)
+    }
+
+    // Helper function for remove():
+    //  2. Deleting a node with one (left) child: Make the parent of the
+    //  deleted node point to the child node.
+    fn remove_single_child_case(
+        &mut self, i_delete: usize,
+        doomed_node: &Node<T, U>,
+        parent: Option<usize>)
+    {
+        if doomed_node.left.is_some() {
+            match parent {
+                Some(i_parent) => {
+                    let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
                     // If the doomed node is its parent's left child.
                     if parent_node.left.is_some() &&
                         parent_node.left.unwrap() == i_delete {
                             parent_node.left = Some(self.nodes[i_delete].left.unwrap());
-                        }
+                    }
                     else { // If the doomed node is its parent's right child.
                         parent_node.right = Some(self.nodes[i_delete].left.unwrap());
                     }
@@ -464,13 +488,9 @@ impl<T, U> BinarySearchTree<T, U>
                     self.root = doomed_node.left;
                 }
             }
-            // Do the actual deletion from the arena.
-            self.nodes.remove(i_delete);
         }
         else if doomed_node.right.is_some() {
-            //  2. Deleting a node with one (right) child: Make the parent of the
-            //  deleted node point to the child node.
-            match parent_current.0 {
+            match parent {
                 Some(i_parent) => {
                     let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
                     // If the doomed node is its parent's left child.
@@ -484,19 +504,15 @@ impl<T, U> BinarySearchTree<T, U>
                 },
                 None => {
                     // We are deleting the root. Make the child the new root.
-                    self.root = doomed_node.right.unwrap();
+                    self.root = doomed_node.right;
                 }
             }
-            // Do the actual deletion from the arena.
-            self.nodes.remove(i_delete);
         }
-        // 1. Deleting a leaf node: Just delete it.
         else {
-            self.nodes.remove(i_delete);
+            panic!("remove_single_child_case() should not be called unless the \
+                    doomed node has exactly one child. This is a bug in \
+                    BinarySearchTree.");
         }
-
-        // Return the contents of the deleted node.
-        Some(return_data)
     }
 
     // Find the node with the given key and return its index and the index of its
