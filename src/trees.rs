@@ -406,9 +406,13 @@ impl<T, U> BinarySearchTree<T, U>
             None => return None
         };
 
+        // Find the index of the node, the index of its parent, and whether it
+        // is the left (or right) child of its parent.
+        let (parent, to_delete, is_left_child) = 
+            self.find_with_parent(i_root, None, key);
+
         // If there's no node with the given key, there's nothing to delete.
-        let parent_current = self.find_with_parent(i_root, None, key);
-        let i_delete = match parent_current.1 {
+        let i_delete = match to_delete {
             Some(i) => i,
             None => return None
         };
@@ -422,12 +426,14 @@ impl<T, U> BinarySearchTree<T, U>
             }
         };
 
+        // TODO: Need to delete the parent's reference to the doomed node
+        // in all three cases (if the doomed node is not the root). Find
+        // out which child the doomed node is from the start and remove
+        // the parent pointer in just one place (at the end).
+
         // 1. Deleting a leaf node: Just delete it.
-        if let i_parent = parent_current.0 {
-            // TODO: Need to delete the parent's reference to the doomed node
-            // in all three cases (if the doomed node is not the root). Find
-            // out which child the doomed node is from the start and remove
-            // the parent pointer in just one place (at the end).
+        if let i_parent = parent {
+            
         }
 
 
@@ -454,7 +460,7 @@ impl<T, U> BinarySearchTree<T, U>
             // remove() recursively.
         }
         else if doomed_node.left.is_some() || doomed_node.right.is_some() {
-            remove_single_child_case(i_delete, &doomed_node, parent_current.0);
+            remove_single_child_case(i_delete, &doomed_node, parent);
         }
 
         // Return the contents of the deleted node.
@@ -515,13 +521,15 @@ impl<T, U> BinarySearchTree<T, U>
         }
     }
 
-    // Find the node with the given key and return its index and the index of its
-    // parent in a (parent, child) tuple. If the node is the root, parent will
-    // be None and if the node doesn't exist, both will be None.
+    // Find the node with the given key and return its index, the index of its
+    // parent, and whether the child is the left child of its parent in a
+    // (parent, child, is_left_child) tuple. If the node is the root, parent will
+    // be None and if the node doesn't exist, both will be None. The is_left_child
+    // value will be none if there is no parent.
     // Initially, current should be the index of the root and previous should be
     // None. If the tree is empty (has no root), this function sould not be called.
     fn find_with_parent(&self, current: usize, previous: Option<usize>, key: &T)
-        -> (Option<usize>, Option<usize>)
+        -> (Option<usize>, Option<usize>, Option<bool>)
     {
         let current_node = match &self.nodes[current] {
             Some(node) => node,
@@ -537,7 +545,7 @@ impl<T, U> BinarySearchTree<T, U>
                 Some(left_index) =>
                     self.search_internal(left_index, Some(current), key),
                 // The given key does not exist in the tree.
-                None => (None, None)
+                None => (None, None None)
             }
         }
         else if *key > current_node.key {
@@ -546,14 +554,19 @@ impl<T, U> BinarySearchTree<T, U>
                 Some(right_index) =>
                     self.search_internal(right_index, Some(current), key),
                 // The given key does not exist in the tree.
-                None => (None, None)
+                None => (None, None, None)
             }
         }
         else {
             // We've found the key.
             match previous {
-                Some(parent) => (Some(parent), Some(current)),
-                None => (None, Some(current))
+                Some(parent) => {
+                    let is_left_child;
+                    is_left_child =
+                        parent.left.is_some() && parent.left.unwrap() = current;
+                    (Some(parent), Some(current), Some(is_left_child))
+                },
+                None => (None, Some(current), None)
             }
         }
     }
