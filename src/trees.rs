@@ -426,10 +426,6 @@ impl<T, U> BinarySearchTree<T, U>
             }
         };
 
-        // TODO: Need to delete the parent's reference to the doomed node
-        // in all three cases (if the doomed node is not the root). Find
-        // out which child the doomed node is from the start.
-
         if doomed_node.left.is_some() && doomed_node.right.is_some() {
             // 3. Deleting a node with two children: Replace the deleted node
             //      with its successor. In this case the successor must be
@@ -442,27 +438,87 @@ impl<T, U> BinarySearchTree<T, U>
             let successor_node = self.nodes[i_successor].unwrap();
             let key_successor = &(successor_node.key);
             let (s_parent, _successor, s_is_left) = 
-                find_with_parent(i_root, None, key_successor);
+                self.find_with_parent(i_root, None, key_successor);
 
             // Remove the pointers to the successor...
-            // Successor has one child.
-            if doomed_node.left.is_some() || doomed_node.right.is_some() {
-                remove_single_child_case(i_successor, &successor_node, s_parent,
-                                         s_is_left);
+            // Successor is the doomed node's child (it can only be a right child).
+            if doomed_node.right.unwrap() == i_successor {
+                // If the doomed_node is the parent of its successor, there's
+                // no need to change the child pointer of the successor's
+                // parent, because that parent is itself being deleted. The
+                // "Splice the successor back in" step below will do all that
+                // is needed in this case.
             }
-            // Successor is a leaf. Remove its parent pointer.
+            // Successor has one child.
+            else if doomed_node.left.is_some() || doomed_node.right.is_some() {
+                    self.remove_single_child_case(i_successor,
+                                             &successor_node,
+                                             s_parent,
+                                             s_is_left);
+            }
+            // Successor is a leaf. Remove its parent's pointer to it.
             else {
+                if let Some(i_s_parent) = s_parent {
+                   let parent_node = self.nodes.borrow_mutable(i_s_parent).
+                       expect("find_with_parent() should return a valid parent index");
+                   if let Some(is_left) = s_is_left {
+                       if is_left {
+                           parent_node.left = None;
+                       }
+                       else {
+                           parent_node.right = None;
+                       }
+                   }
+                   else {
+                       panic!("If find_with_parent() returns a parent, it should \
+                            also return a valid \"is left child\" boolean.");
+                   }
+                }
+                else {
+                    // If a node has two nodes, and therefore has a right child,
+                    // its successor must exist and must be in its right subtree,
+                    // meaning its successor must have a parent.
+                    panic!("It shouldn't be possible for the successor of a \
+                        node with two children to be the root. This is a bug in \
+                        BinarySearchTree");
+                }
             }
  
 
             // Splice the successor back in where the doomed node was.
-
-
-            // TODO: Use the single child function here to remove the successor,
-            // rather than attempting to call remove() recursively.
+            match parent {
+                Some(i_parent) => {
+                    let parent_node = self.nodes.borrow_mutable(i_parent);
+                    
+                    if let Some(is_left) = is_left_child {
+                       if is_left {
+                           parent_node.left = Some(i_successor);
+                       }
+                       else {
+                           parent_node.right = Some(i_successor);
+                       }
+                    }
+                    else {
+                       panic!("If find_with_parent() returns a parent, it should \
+                            also return a valid \"is left child\" boolean.");
+                    }
+                },
+                None =>  {
+                    self.root = Some(i_successor);
+                }
+            }
+            let successor_node = self.nodes.borrow_mutable(i_successor);
+            match doomed_node.left {
+                Some(i_left) => successor_node.left = Some(i_left),
+                None => successor_node.left = None
+            }
+            match doomed_node.right {
+                Some(i_right) => successor_node.right = Some(i_right),
+                None => successor_node.right = None
+            }
         }
         else if doomed_node.left.is_some() || doomed_node.right.is_some() {
-            remove_single_child_case(i_delete, &doomed_node, parent, is_left_child);
+            self.remove_single_child_case(i_delete, &doomed_node, parent, is_left_child);
         }
         else {
             // 1. Deleting a leaf node: Just delete it.
@@ -490,8 +546,8 @@ impl<T, U> BinarySearchTree<T, U>
     fn remove_single_child_case(
         &mut self, i_delete: usize,
         doomed_node: &Node<T, U>,
-        parent: Option<usize>),
-        is_left_child: Option<usize>
+        parent: Option<usize>,
+        is_left_child: Option<usize>)
     {
         if doomed_node.left.is_some() {
             match parent {
