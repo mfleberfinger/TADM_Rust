@@ -489,6 +489,8 @@ impl<T, U> BinarySearchTree<T, U>
             match parent {
                 Some(i_parent) => {
                     let parent_node = self.nodes.borrow_mutable(i_parent);
+                    let parent_node = parent_node.
+                        expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     
                     if let Some(is_left) = is_left_child {
                        if is_left {
@@ -508,6 +510,8 @@ impl<T, U> BinarySearchTree<T, U>
                 }
             }
             let successor_node = self.nodes.borrow_mutable(i_successor);
+            let successor_node = successor_node.
+                expect("i_successor should be valid. There is a bug in BinarySearchTree.");
             match doomed_node.left {
                 Some(i_left) => successor_node.left = Some(i_left),
                 None => successor_node.left = None
@@ -547,19 +551,29 @@ impl<T, U> BinarySearchTree<T, U>
         &mut self, i_delete: usize,
         doomed_node: &Node<T, U>,
         parent: Option<usize>,
-        is_left_child: Option<usize>)
+        is_left_child: Option<bool>)
     {
         if doomed_node.left.is_some() {
             match parent {
                 Some(i_parent) => {
-                    let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+                    let parent_node = self.nodes.
+                        borrow_mutable(i_parent).
+                        expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     // If the doomed node is its parent's left child.
                     if is_left_child.
                         expect("If the node has a parent, it must be a child") {
-                        parent_node.left = Some(self.nodes[i_delete].left.unwrap());
+                        parent_node.left =
+                            Some(self.nodes[i_delete].
+                                 expect("i_delete should be valid. There is a bug in BinarySearchTree").
+                                left.
+                                unwrap());
                     }
                     else { // If the doomed node is its parent's right child.
-                        parent_node.right = Some(self.nodes[i_delete].left.unwrap());
+                        parent_node.right =
+                            Some(self.nodes[i_delete].
+                                 expect("i_delete should be valid. There is a bug in BinarySearchTree").
+                                 left.
+                                 unwrap());
                     }
 
                 },
@@ -572,14 +586,24 @@ impl<T, U> BinarySearchTree<T, U>
         else if doomed_node.right.is_some() {
             match parent {
                 Some(i_parent) => {
-                    let parent_node = self.nodes.borrow_mutable(i_parent).unwrap();
+                    let parent_node = self.nodes.
+                        borrow_mutable(i_parent).
+                        expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     // If the doomed node is its parent's left child.
                     if is_left_child.
                         expect("If the node has a parent, it must be a child") {
-                        parent_node.left = Some(self.nodes[i_delete].right.unwrap());
+                        parent_node.left =
+                            Some(self.nodes[i_delete].
+                                 expect("i_delete should be valid. There is a bug in BinarySearchTree").
+                                 right.
+                                 unwrap());
                     }
                     else { // If the doomed node is its parent's right child.
-                        parent_node.right = Some(self.nodes[i_delete].right.unwrap());
+                        parent_node.right =
+                            Some(self.nodes[i_delete].
+                                 expect("i_parent should be valid. There is a bug in BinarySearchTree.").
+                                 right.
+                                 unwrap());
                     }
                 },
                 None => {
@@ -617,16 +641,16 @@ impl<T, U> BinarySearchTree<T, U>
             match current_node.left {
                 // Search the left subtree.
                 Some(left_index) =>
-                    self.search_internal(left_index, Some(current), key),
+                    self.find_with_parent(left_index, Some(current), key),
                 // The given key does not exist in the tree.
-                None => (None, None None)
+                None => (None, None, None)
             }
         }
         else if *key > current_node.key {
             match current_node.right {
                 // Search the right subtree.
                 Some(right_index) =>
-                    self.search_internal(right_index, Some(current), key),
+                    self.find_with_parent(right_index, Some(current), key),
                 // The given key does not exist in the tree.
                 None => (None, None, None)
             }
@@ -634,11 +658,14 @@ impl<T, U> BinarySearchTree<T, U>
         else {
             // We've found the key.
             match previous {
-                Some(parent) => {
+                Some(i_parent) => {
                     let is_left_child;
+                    let parent = self.
+                        nodes[i_parent].
+                        expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     is_left_child =
-                        parent.left.is_some() && parent.left.unwrap() = current;
-                    (Some(parent), Some(current), Some(is_left_child))
+                        parent.left.is_some() && parent.left.unwrap() == current;
+                    (Some(i_parent), Some(current), Some(is_left_child))
                 },
                 None => (None, Some(current), None)
             }
@@ -654,15 +681,20 @@ impl<T, U> BinarySearchTree<T, U>
         
         // Get the index of the right subtree if it exists. Otherwise, return
         // the given index as its own successor.
-        match self.nodes[index].
-            expect("invalid index in BinaryTree.Successor()").right {
+        match self.
+            nodes[index].
+            expect("invalid index in BinaryTree.Successor()").
+            right {
 
             Some(right) => current = right,
             None => return index
         }
         
-        while let left = self.nodes[current].
-            expect("invalid index in BinaryTree.Successor()").left {
+        while let Some(left) =
+            self.
+            nodes[current].
+            expect("invalid index in BinaryTree.Successor()").
+            left {
 
             current = left;
         }
