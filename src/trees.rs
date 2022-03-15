@@ -435,7 +435,7 @@ impl<T, U> BinarySearchTree<T, U>
             // because we know the node has a right child, meaning it must have
             // a successor.
             let i_successor = self.successor(i_delete);
-            let successor_node = self.nodes[i_successor].unwrap();
+            let successor_node = self.nodes[i_successor].as_ref().unwrap();
             let key_successor = &(successor_node.key);
             let (s_parent, _successor, s_is_left) = 
                 self.find_with_parent(i_root, None, key_successor);
@@ -548,7 +548,8 @@ impl<T, U> BinarySearchTree<T, U>
     //  2. Deleting a node with one (left) child: Make the parent of the
     //  deleted node point to the child node.
     fn remove_single_child_case(
-        &mut self, i_delete: usize,
+        &mut self,
+        i_delete: usize,
         doomed_node: &Node<T, U>,
         parent: Option<usize>,
         is_left_child: Option<bool>)
@@ -564,13 +565,15 @@ impl<T, U> BinarySearchTree<T, U>
                         expect("If the node has a parent, it must be a child") {
                         parent_node.left =
                             Some(self.nodes[i_delete].
-                                 expect("i_delete should be valid. There is a bug in BinarySearchTree").
+                                as_ref().
+                                expect("i_delete should be valid. There is a bug in BinarySearchTree").
                                 left.
                                 unwrap());
                     }
                     else { // If the doomed node is its parent's right child.
                         parent_node.right =
                             Some(self.nodes[i_delete].
+                                 as_ref().
                                  expect("i_delete should be valid. There is a bug in BinarySearchTree").
                                  left.
                                  unwrap());
@@ -590,10 +593,12 @@ impl<T, U> BinarySearchTree<T, U>
                         borrow_mutable(i_parent).
                         expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     // If the doomed node is its parent's left child.
-                    if is_left_child.
+                    if *is_left_child.
+                        as_ref().
                         expect("If the node has a parent, it must be a child") {
                         parent_node.left =
                             Some(self.nodes[i_delete].
+                                 as_ref().
                                  expect("i_delete should be valid. There is a bug in BinarySearchTree").
                                  right.
                                  unwrap());
@@ -601,6 +606,7 @@ impl<T, U> BinarySearchTree<T, U>
                     else { // If the doomed node is its parent's right child.
                         parent_node.right =
                             Some(self.nodes[i_delete].
+                                 as_ref().
                                  expect("i_parent should be valid. There is a bug in BinarySearchTree.").
                                  right.
                                  unwrap());
@@ -662,6 +668,7 @@ impl<T, U> BinarySearchTree<T, U>
                     let is_left_child;
                     let parent = self.
                         nodes[i_parent].
+                        as_ref().
                         expect("i_parent should be valid. There is a bug in BinarySearchTree.");
                     is_left_child =
                         parent.left.is_some() && parent.left.unwrap() == current;
@@ -683,6 +690,7 @@ impl<T, U> BinarySearchTree<T, U>
         // the given index as its own successor.
         match self.
             nodes[index].
+            as_ref().
             expect("invalid index in BinaryTree.Successor()").
             right {
 
@@ -693,6 +701,7 @@ impl<T, U> BinarySearchTree<T, U>
         while let Some(left) =
             self.
             nodes[current].
+            as_ref().
             expect("invalid index in BinaryTree.Successor()").
             left {
 
